@@ -1364,6 +1364,69 @@ function toggleReading() {
     : '<path d="M8 5v14l11-7z"/>';
 }
 
+// ─── Admin Dashboard ──────────────────────────────────────────────────────────
+let _adminKey = '';
+
+function openAdminView() {
+  const lock = document.getElementById('admin-lock');
+  const content = document.getElementById('admin-content');
+  if (_adminKey) { lock.classList.add('hidden'); content.classList.remove('hidden'); loadAdminStats(); }
+  else { lock.classList.remove('hidden'); content.classList.add('hidden'); }
+}
+
+async function unlockAdmin() {
+  const inp = document.getElementById('admin-key-input');
+  const err = document.getElementById('admin-auth-err');
+  const key = inp.value.trim();
+  if (!key) return;
+  err.classList.add('hidden');
+  try {
+    const res = await fetch(`${API_URL}/admin/dashboard`, { headers: { 'X-Admin-Key': key } });
+    if (!res.ok) { err.classList.remove('hidden'); return; }
+    _adminKey = key;
+    document.getElementById('admin-lock').classList.add('hidden');
+    document.getElementById('admin-content').classList.remove('hidden');
+    const data = await res.json();
+    renderAdminData(data);
+  } catch (e) { err.classList.remove('hidden'); }
+}
+
+async function loadAdminStats() {
+  if (!_adminKey) return;
+  try {
+    const res = await fetch(`${API_URL}/admin/dashboard`, { headers: { 'X-Admin-Key': _adminKey } });
+    if (res.ok) renderAdminData(await res.json());
+  } catch (e) { /* offline */ }
+}
+
+function renderAdminData(d) {
+  document.getElementById('admin-visitor-grid').innerHTML = [
+    ['👁', 'Total Views', d.total_views],
+    ['👤', 'Unique Visitors', d.unique_visitors],
+    ['🟢', 'Active Now', d.active_last_15min],
+    ['📅', 'Daily Active', d.daily_active],
+  ].map(([icon, label, val]) =>
+    `<div class="bg-slate-50 rounded-2xl p-4 text-center"><div class="text-2xl mb-1">${icon}</div><div class="text-lg font-extrabold text-slate-800">${val.toLocaleString()}</div><div class="text-[10px] text-slate-400 font-semibold">${label}</div></div>`
+  ).join('');
+
+  document.getElementById('admin-content-stats').innerHTML =
+    `<div class="grid grid-cols-3 gap-3 text-center">` +
+    [['📰', 'Articles', d.total_articles], ['✨', 'Enriched', d.articles_enriched], ['🔖', 'Bookmarks', d.total_bookmarks]]
+      .map(([i,l,v]) => `<div><div class="text-xl">${i}</div><div class="text-lg font-extrabold text-slate-800">${v}</div><div class="text-[10px] text-slate-400 font-semibold">${l}</div></div>`).join('') +
+    `</div>`;
+
+  const cats = d.articles_by_category || {};
+  const maxCat = Math.max(...Object.values(cats), 1);
+  document.getElementById('admin-categories').innerHTML = Object.entries(cats)
+    .sort((a, b) => b[1] - a[1])
+    .map(([cat, n]) => `<div class="flex items-center gap-3"><span class="text-xs font-bold text-slate-600 w-28 truncate">${cat}</span><div class="flex-1 bg-slate-100 rounded-full h-5 overflow-hidden"><div class="h-full bg-[#4a90a4] rounded-full" style="width:${(n/maxCat*100).toFixed(0)}%"></div></div><span class="text-xs font-bold text-slate-500 w-8 text-right">${n}</span></div>`)
+    .join('');
+
+  document.getElementById('admin-recent').innerHTML = (d.recent_articles || [])
+    .map(a => `<div class="flex items-center gap-2 py-2 border-b border-slate-100 last:border-0"><span class="text-xs ${a.enriched ? 'text-green-500' : 'text-slate-300'}">${a.enriched ? '✅' : '⏳'}</span><span class="text-xs font-semibold text-slate-700 flex-1 truncate">${a.title}</span><span class="text-[10px] text-slate-400">${a.source}</span></div>`)
+    .join('');
+}
+
 // ─── Init ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   const f = document.getElementById('loc-from');
