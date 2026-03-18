@@ -1,0 +1,33 @@
+# ── Copy this file to terraform.tfvars and fill in your values ────────────────
+# terraform.tfvars is gitignored — NEVER commit real credentials.
+
+# ── Huawei Cloud IAM Credentials ─────────────────────────────────────────────
+# Get from: Huawei Cloud Console → My Credentials → Access Keys
+hw_access_key = "LTAI5xxxxxxxxxxxxxxxx"
+hw_secret_key = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+# ── SSH Key ───────────────────────────────────────────────────────────────────
+# Paste your public key (cat ~/.ssh/id_rsa.pub)
+ssh_public_key = "ssh-rsa AAAAB3Nza... your-public-key-here"
+
+# (Optional) Absolute path to private key for automated deployment
+# Leave empty ("") to skip the auto-deploy step and deploy manually.
+domain_name = "hungu.co.za"   # e.g. "/Users/you/.ssh/id_rsa"
+
+# ── Database ──────────────────────────────────────────────────────────────────
+# RDS PostgreSQL master password
+# Rules: 8–32 chars, must contain uppercase, lowercase, digit, and special char
+db_password  = "Hungu@2026!"
+db_username  = "hungu"
+
+# ── Application Secrets ───────────────────────────────────────────────────────
+# Get from: https://aistudio.google.com/app/apikey
+gemini_api_key = "AIzaSy..."
+
+# Random secret string for JWT signing (generate with: openssl rand -hex 32)
+jwt_secret       = "change_me_to_a_long_random_hex_string"
+worker_api_key   = "change_me_to_a_worker_key_hex_string"
+
+# ── Region / Zone (defaults are fine for South Africa) ───────────────────────
+region            = "af-south-1"
+availability_zone = "af-south-1a"

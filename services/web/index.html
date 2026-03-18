@@ -1,0 +1,1379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#87ceeb" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="HUNGU" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" type="image/png" href="/hungu.png" />
+  <link rel="apple-touch-icon" href="/hungu.png" />
+  <title>HUNGU | Actionable News</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            sky: { DEFAULT: '#87ceeb', dark: '#5bb8d4' },
+            hungu: { blue: '#87ceeb', dark: '#4a90a4', card: '#e8f7fc' },
+            app: { bg: '#4b5d6c' }
+          },
+          borderRadius: { '3xl': '1.75rem', '4xl': '2.5rem' },
+          fontFamily: { sans: ['"Inter"', 'system-ui', 'sans-serif'] }
+        }
+      }
+    }
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+    body { background: #4b5d6c; min-height: 100vh; }
+    .scroll-hide::-webkit-scrollbar { display: none; }
+    .scroll-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    .press:active { transform: scale(0.97); transition: transform 0.1s; }
+    .slide-in { animation: slideIn 0.3s ease-out; }
+    @keyframes slideIn { from { transform: translateX(100%); opacity:0; } to { transform: translateX(0); opacity:1; } }
+    .fade-in { animation: fadeIn 0.25s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity:1; transform:translateY(0); } }
+    .pulse-ring { animation: pulseRing 2s infinite; }
+    @keyframes pulseRing { 0%,100%{ box-shadow:0 0 0 0 rgba(135,206,235,0.5); } 50%{ box-shadow:0 0 0 10px rgba(135,206,235,0); } }
+    /* date pill active */
+    .date-btn.active { color: #4a90a4; font-weight: 700; }
+    /* passenger circle active */
+    .pass-btn.active { background: #87ceeb; color: #fff; box-shadow: 0 4px 12px rgba(135,206,235,0.5); }
+    .pass-btn:not(.active) { background: #fff; color: #475569; }
+    /* Section tag */
+    .sec-tag { font-size: 0.6rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; }
+    /* Feed: single Facebook-style column */
+    #feed-list { display: block; }
+    @media (min-width: 680px) { #feed-list { max-width: 680px; margin-left: auto; margin-right: auto; } }
+  </style>
+</head>
+<body class="bg-[#4b5d6c] min-h-screen">
+
+<!-- ═══════════════════════════════════════════ APP SHELL ═══════════════════════ -->
+<div id="app" class="w-full min-h-screen bg-[#4b5d6c] relative flex flex-col">
+
+  <!-- ── LANDING PAGE ──────────────────────────────────────────────────────────────── -->
+  <div id="view-landing" class="view hidden min-h-screen flex flex-col overflow-y-auto scroll-hide">
+    <div class="max-w-lg mx-auto w-full flex flex-col min-h-screen px-6 pt-14 pb-8">
+      <!-- Logo + tagline -->
+      <div class="flex flex-col items-center text-center mb-8">
+        <div class="w-20 h-20 rounded-3xl bg-[#87ceeb] flex items-center justify-center mb-4 shadow-xl">
+          <img src="/hungu.png" alt="HUNGU" class="h-14 w-14 object-contain" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'text-3xl font-black text-white',textContent:'H'}))"/>
+        </div>
+        <h1 class="text-white text-4xl font-black tracking-tight mb-1">HUNGU</h1>
+        <p class="text-[#87ceeb] text-sm font-semibold mb-4">Your World. Your News.</p>
+        <p class="text-white/70 text-sm leading-relaxed max-w-sm">
+          AI-powered hyper-local South African news. Know what’s happening in your suburb, city and country — and exactly what you should do about it.
+        </p>
+      </div>
+      <!-- Feature pills -->
+      <div class="flex flex-wrap justify-center gap-2 mb-8">
+        <span class="bg-white/10 text-white/80 text-xs font-semibold px-3 py-1.5 rounded-full">📍 Suburb-level news</span>
+        <span class="bg-white/10 text-white/80 text-xs font-semibold px-3 py-1.5 rounded-full">🤖 AI-summarised</span>
+        <span class="bg-white/10 text-white/80 text-xs font-semibold px-3 py-1.5 rounded-full">🎯 Actionable steps</span>
+        <span class="bg-white/10 text-white/80 text-xs font-semibold px-3 py-1.5 rounded-full">📖 Spiritual context</span>
+      </div>
+      <!-- Latest news teasers -->
+      <div class="flex-1 mb-8">
+        <p class="text-white/40 text-[10px] font-extrabold uppercase tracking-widest mb-3">Happening Now</p>
+        <div id="landing-teasers" class="space-y-2">
+          <div class="bg-white/10 rounded-2xl h-16 animate-pulse"></div>
+          <div class="bg-white/10 rounded-2xl h-16 animate-pulse"></div>
+          <div class="bg-white/10 rounded-2xl h-16 animate-pulse"></div>
+        </div>
+      </div>
+      <!-- CTAs -->
+      <div class="space-y-3">
+        <button onclick="startOnboarding()" class="w-full bg-white text-[#4b5d6c] py-4 rounded-full font-extrabold text-base press shadow-xl">Get Started — It’s Free</button>
+        <button onclick="alreadyHaveAccount()" class="w-full border-2 border-white/30 text-white py-4 rounded-full font-bold text-sm press">I already have an account</button>
+        <button onclick="continueAsGuest()" class="w-full text-white/40 py-2 text-sm font-medium press">Continue as guest</button>
+      </div>
+    </div>
+  </div><!-- /view-landing -->
+
+
+  <!-- ── AUTH ─────────────────────────────────────────────────────────────────────── -->
+  <div id="view-auth" class="view hidden min-h-screen flex flex-col">
+    <div class="max-w-lg mx-auto w-full flex flex-col min-h-screen px-6 pt-10 pb-8">
+      <button onclick="showView('landing')" class="text-white/60 text-sm flex items-center gap-1 mb-10 press w-fit">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg> Back
+      </button>
+      <h1 class="text-white text-3xl font-extrabold mb-1" id="auth-title">Welcome back</h1>
+      <p class="text-white/60 text-sm mb-8" id="auth-subtitle">Sign in to sync your preferences and bookmarks</p>
+      <div class="bg-white rounded-3xl p-6 shadow-2xl">
+        <div id="auth-name-row" class="mb-4 hidden">
+          <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">Name</label>
+          <input id="auth-name" type="text" placeholder="Your name"
+            class="mt-1.5 w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold outline-none focus:border-[#4a90a4]"/>
+        </div>
+        <div class="mb-5">
+          <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">Email address</label>
+          <input id="auth-email" type="email" placeholder="your@email.com"
+            class="mt-1.5 w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold outline-none focus:border-[#4a90a4]"/>
+        </div>
+        <button onclick="submitAuth()" class="w-full bg-[#4b5d6c] text-white py-4 rounded-xl font-bold text-base press mb-4" id="auth-submit-btn">Continue</button>
+        <div class="flex items-center gap-3 mb-4"><div class="h-px bg-slate-200 flex-1"></div><span class="text-slate-400 text-xs">or</span><div class="h-px bg-slate-200 flex-1"></div></div>
+        <button onclick="continueAsGuest()" class="w-full bg-slate-50 border border-slate-200 text-slate-700 py-3.5 rounded-xl font-bold text-sm press">Continue as Guest</button>
+        <p class="text-center text-xs text-slate-400 mt-4 cursor-pointer" onclick="toggleAuthMode()">
+          <span id="auth-toggle-text">Don’t have an account?</span> <span class="text-[#4a90a4] font-bold" id="auth-toggle-action">Register</span>
+        </p>
+      </div>
+    </div>
+  </div><!-- /view-auth -->
+
+
+  <!-- ── ONBOARDING ──────────────────────────────────────────────────────────── -->
+  <div id="view-onboarding" class="view hidden min-h-screen flex flex-col overflow-y-auto scroll-hide">
+    <div class="max-w-lg mx-auto w-full flex flex-col min-h-screen px-6 pt-10 pb-8">
+      <!-- Progress bar -->
+      <div class="flex gap-1.5 mb-10">
+        <div class="h-1 w-10 rounded-full bg-white"></div>
+        <div class="h-1 flex-1 rounded-full bg-white/25"></div>
+      </div>
+      <h1 class="text-white text-3xl font-extrabold leading-tight mb-2">Where is<br/>your world?</h1>
+      <p class="text-white/60 text-sm mb-8">Set your location so we deliver news that actually affects you.</p>
+      <div class="bg-white rounded-3xl p-6 shadow-2xl flex-1 mb-6">
+        <div class="space-y-4">
+          <div>
+            <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">🏘 Suburb / Neighbourhood</label>
+            <input id="ob-suburb" type="text" placeholder="e.g. Menlyn, Sandton, Rosebank"
+              class="mt-1.5 w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold outline-none focus:border-[#4a90a4]"/>
+          </div>
+          <div>
+            <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">🏙 City / Town</label>
+            <input id="ob-city" type="text" placeholder="e.g. Pretoria, Johannesburg, Cape Town"
+              class="mt-1.5 w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold outline-none focus:border-[#4a90a4]"/>
+          </div>
+          <div>
+            <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">🗺 Province</label>
+            <input id="ob-province" type="text" placeholder="e.g. Gauteng, Western Cape, KZN"
+              class="mt-1.5 w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold outline-none focus:border-[#4a90a4]"/>
+          </div>
+          <div>
+            <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">🌍 Country</label>
+            <input id="ob-country" type="text" placeholder="South Africa" value="South Africa"
+              class="mt-1.5 w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold outline-none focus:border-[#4a90a4]"/>
+          </div>
+        </div>
+      </div>
+      <div class="space-y-3">
+        <button onclick="submitOnboarding()" class="w-full bg-white text-[#4b5d6c] py-4 rounded-full font-extrabold text-base press shadow-xl">Show My News →</button>
+        <button onclick="skipOnboarding()" class="w-full text-white/40 py-2 text-sm press">Skip for now</button>
+      </div>
+    </div>
+  </div><!-- /view-onboarding -->
+
+
+  <!-- ── SEARCH / BOOKING CARD (Home) ──────────────────────────────────────────── -->
+  <div id="view-search" class="view hidden flex flex-col min-h-screen">
+
+    <!-- Top hero card -->
+    <div class="bg-[#87ceeb] rounded-b-[3rem] px-6 pt-10 pb-8 shadow-lg">
+      <!-- Logo row -->
+      <div class="flex items-center justify-between mb-6">
+        <img src="/hungu.png" alt="HUNGU" class="h-9 object-contain" onerror="this.style.display='none'; document.getElementById('logo-text').style.display='block'"/>
+        <span id="logo-text" class="text-2xl font-black italic tracking-tight text-white hidden">HUNGU</span>
+        <div id="auth-avatar" class="w-9 h-9 rounded-full bg-white/30 flex items-center justify-center cursor-pointer press" onclick="showView('profile')">
+          <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+        </div>
+      </div>
+
+      <h1 class="text-white text-3xl font-extrabold leading-tight mb-6">Where are<br/>you going?</h1>
+
+      <!-- Route selector -->
+      <div class="bg-white/20 backdrop-blur rounded-3xl p-5 relative">
+        <div class="flex items-start gap-3">
+          <!-- Timeline dots -->
+          <div class="flex flex-col items-center pt-1 gap-1">
+            <div class="w-3 h-3 rounded-full border-2 border-white bg-transparent"></div>
+            <div class="w-0.5 h-8 bg-white/60"></div>
+            <div class="w-3 h-3 rounded-full bg-white"></div>
+          </div>
+          <!-- Fields -->
+          <div class="flex-1 space-y-3">
+            <div>
+              <p class="text-white/70 text-xs font-semibold uppercase tracking-widest mb-0.5">From</p>
+              <input id="loc-from" type="text" value="Menlyn" placeholder="Your suburb"
+                class="w-full bg-transparent text-white font-bold text-lg outline-none placeholder-white/50 border-b border-white/30 pb-1"
+                oninput="updateUser('suburb', this.value)" />
+            </div>
+            <div>
+              <p class="text-white/70 text-xs font-semibold uppercase tracking-widest mb-0.5">To</p>
+              <input id="loc-to" type="text" value="Ghent" placeholder="Destination / City"
+                class="w-full bg-transparent text-white font-bold text-lg outline-none placeholder-white/50"
+                oninput="updateUser('city', this.value)" />
+            </div>
+          </div>
+        </div>
+        <!-- Swap button -->
+        <button onclick="swapLocations()" class="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-md press">
+          <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- White bottom card: Date + Passengers + Search -->
+    <div class="mx-4 mt-5 mb-6 bg-white rounded-[2rem] px-6 pt-7 pb-7 shadow-xl flex flex-col gap-6">
+
+      <!-- Date selector -->
+      <div>
+        <h2 class="text-xl font-extrabold text-slate-800 mb-4">Date</h2>
+        <div class="flex gap-5 items-center">
+          <button onclick="setDate('today')" id="btn-today" class="date-btn active font-bold text-sm press">Today</button>
+          <button onclick="setDate('tomorrow')" id="btn-tomorrow" class="date-btn font-medium text-slate-400 text-sm press">Tomorrow</button>
+          <button onclick="showDatePicker()" class="date-btn flex items-center gap-1.5 font-medium text-slate-400 text-sm press">
+            Other Date
+            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+          </button>
+          <input id="date-picker" type="date" class="hidden" onchange="setCustomDate(this.value)" />
+        </div>
+      </div>
+
+      <!-- Passengers -->
+      <div>
+        <h2 class="text-xl font-extrabold text-slate-800 mb-4">Passengers</h2>
+        <div class="flex gap-3">
+          <button onclick="setPassengers(1)" id="p1" class="pass-btn active w-12 h-12 rounded-full font-bold text-base press transition-all">1</button>
+          <button onclick="setPassengers(2)" id="p2" class="pass-btn w-12 h-12 rounded-full font-bold text-base shadow-sm press transition-all">2</button>
+          <button onclick="setPassengers(3)" id="p3" class="pass-btn w-12 h-12 rounded-full font-bold text-base shadow-sm press transition-all">3</button>
+          <button onclick="setPassengers(4)" id="p4" class="pass-btn w-12 h-12 rounded-full font-bold text-base shadow-sm press transition-all">4</button>
+        </div>
+      </div>
+
+      <!-- Search / Go button -->
+      <button onclick="showView('feed')" class="w-full bg-[#4b5d6c] text-white py-4 rounded-full font-bold text-base shadow-lg press mt-1">
+        Search
+      </button>
+    </div>
+
+    <!-- Bottom nav -->
+    <div id="nav-search" class="mt-auto">
+      <!-- intentionally empty — nav shown on feed/detail -->
+    </div>
+  </div><!-- /view-search -->
+
+
+  <!-- ── NEWS FEED ──────────────────────────────────────────────────────────── -->
+  <div id="view-feed" class="view hidden flex flex-col min-h-screen bg-[#f0f2f5]">
+
+    <!-- Sticky header -->
+    <header class="sticky top-0 z-40 bg-[#87ceeb] px-4 pt-6 pb-4 flex justify-between items-center">
+      <div class="flex items-center gap-2 cursor-pointer press" onclick="showView('search')">
+        <img src="/hungu.png" alt="HUNGU" class="h-8 object-contain" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'text-xl font-black italic text-white',textContent:'HUNGU'}))"/>
+      </div>
+      <div class="flex gap-3 items-center">
+        <div id="location-badge" class="bg-white/30 text-white text-xs font-bold px-3 py-1 rounded-full"></div>
+        <button onclick="showView('profile')" class="w-8 h-8 rounded-full bg-white/30 flex items-center justify-center press">
+          <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Daily Pulse card -->
+    <div class="px-4 sm:px-8 pt-3 pb-0 max-w-screen-lg mx-auto w-full">
+      <div class="bg-slate-800 text-white rounded-3xl p-5 shadow-xl relative overflow-hidden">
+        <div class="relative z-10">
+          <p id="pulse-location" class="text-[#87ceeb] text-xs font-extrabold uppercase tracking-widest mb-1">Hyper-Local: Menlyn</p>
+          <h2 class="text-xl font-extrabold mb-1">Daily Pulse</h2>
+          <p class="text-slate-300 text-sm mb-4">Priority briefing for your area</p>
+          <button onclick="toggleReading()" id="read-btn"
+            class="w-full bg-white text-black py-3 rounded-2xl flex items-center justify-center gap-2 font-bold text-sm shadow">
+            <svg id="read-icon" class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            <span id="read-label">Read my news</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Category filter -->
+    <div class="px-4 sm:px-8 pt-4 flex gap-2 overflow-x-auto scroll-hide pb-1 max-w-screen-lg mx-auto w-full">
+      <button onclick="filterCategory('all')" id="cat-all" class="cat-btn flex-shrink-0 bg-[#4a90a4] text-white px-4 py-1.5 rounded-full text-xs font-bold press">All</button>
+      <button onclick="filterCategory('Wars')" id="cat-Wars" class="cat-btn flex-shrink-0 bg-white text-slate-600 px-4 py-1.5 rounded-full text-xs font-bold press">⚔️ Wars</button>
+      <button onclick="filterCategory('Economy')" id="cat-Economy" class="cat-btn flex-shrink-0 bg-white text-slate-600 px-4 py-1.5 rounded-full text-xs font-bold press">💹 Economy</button>
+      <button onclick="filterCategory('Politics')" id="cat-Politics" class="cat-btn flex-shrink-0 bg-white text-slate-600 px-4 py-1.5 rounded-full text-xs font-bold press">🏛️ Politics</button>
+      <button onclick="filterCategory('Health')" id="cat-Health" class="cat-btn flex-shrink-0 bg-white text-slate-600 px-4 py-1.5 rounded-full text-xs font-bold press">🏥 Health</button>
+      <button onclick="filterCategory('Jobs')" id="cat-Jobs" class="cat-btn flex-shrink-0 bg-white text-slate-600 px-4 py-1.5 rounded-full text-xs font-bold press">💼 Jobs</button>
+      <button onclick="filterCategory('Local')" id="cat-Local" class="cat-btn flex-shrink-0 bg-white text-slate-600 px-4 py-1.5 rounded-full text-xs font-bold press">📍 Local</button>
+      <button onclick="filterCategory('Auctions')" id="cat-Auctions" class="cat-btn flex-shrink-0 bg-white text-slate-600 px-4 py-1.5 rounded-full text-xs font-bold press">🏠 Auctions</button>
+    </div>
+
+    <!-- Feed list -->
+    <main id="feed-list" class="flex-1 overflow-y-auto scroll-hide pt-2 pb-28 fade-in">
+      <!-- Injected by JS -->
+    </main>
+
+    <!-- Bottom nav -->
+    <nav class="fixed bottom-0 left-0 w-full bg-white/90 backdrop-blur border-t border-slate-100 flex justify-around py-3 pb-5 z-50 shadow-2xl">
+      <button onclick="showView('search')" class="flex flex-col items-center gap-0.5 text-slate-400 press">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <span class="text-[9px] font-bold uppercase">Search</span>
+      </button>
+      <button onclick="showView('feed')" class="flex flex-col items-center gap-0.5 text-slate-800 press">
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        <span class="text-[9px] font-bold uppercase">Feed</span>
+      </button>
+      <button onclick="showView('saved')" class="flex flex-col items-center gap-0.5 text-slate-400 press">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+        <span class="text-[9px] font-bold uppercase">Saved</span>
+      </button>
+      <button onclick="showView('profile')" class="flex flex-col items-center gap-0.5 text-slate-400 press">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span class="text-[9px] font-bold uppercase">Me</span>
+      </button>
+    </nav>
+  </div><!-- /view-feed -->
+
+
+  <!-- ── ARTICLE DETAIL ─────────────────────────────────────────────────────── -->
+  <div id="view-detail" class="view hidden flex flex-col h-screen overflow-y-auto scroll-hide bg-white slide-in">
+    <div id="detail-content"></div>
+    <!-- AdSense placeholder at bottom of article -->
+    <div class="px-4 py-4 mb-20">
+      <div class="bg-slate-100 rounded-2xl flex items-center justify-center h-20 text-slate-400 text-xs font-bold border border-slate-200/60">
+        Advertisement · Google AdSense
+      </div>
+    </div>
+    <nav class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-sm bg-white/90 backdrop-blur border-t border-slate-100 flex justify-around py-3 pb-5 z-50 shadow-2xl">
+      <button onclick="showView('feed')" class="flex flex-col items-center gap-0.5 text-slate-400 press">
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        <span class="text-[9px] font-bold uppercase">Feed</span>
+      </button>
+      <button onclick="showView('saved')" class="flex flex-col items-center gap-0.5 text-slate-400 press">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+        <span class="text-[9px] font-bold uppercase">Saved</span>
+      </button>
+      <button onclick="showView('profile')" class="flex flex-col items-center gap-0.5 text-slate-400 press">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span class="text-[9px] font-bold uppercase">Me</span>
+      </button>
+    </nav>
+  </div><!-- /view-detail -->
+
+
+  <!-- ── SAVED / BOOKMARKS ──────────────────────────────────────────────────── -->
+  <div id="view-saved" class="view hidden flex flex-col h-screen bg-slate-50">
+    <header class="px-6 pt-10 pb-4 bg-[#87ceeb]">
+      <button onclick="showView('feed')" class="text-white/80 text-sm font-semibold flex items-center gap-1 mb-3 press">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+        Back
+      </button>
+      <h1 class="text-white text-2xl font-extrabold">Bookmarks</h1>
+    </header>
+    <main id="saved-list" class="flex-1 overflow-y-auto scroll-hide px-4 pt-4 pb-24 space-y-4 fade-in">
+      <!-- Injected by JS -->
+    </main>
+  </div><!-- /view-saved -->
+
+
+  <!-- ── PROFILE ────────────────────────────────────────────────────────────── -->
+  <div id="view-profile" class="view hidden flex flex-col h-screen bg-slate-50 overflow-y-auto scroll-hide">
+    <header class="px-6 pt-10 pb-6 bg-[#87ceeb]">
+      <button onclick="showView('feed')" class="text-white/80 text-sm font-semibold flex items-center gap-1 mb-4 press">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+        Back
+      </button>
+      <div class="flex items-center gap-4">
+        <div class="w-16 h-16 rounded-full bg-white/30 flex items-center justify-center text-white text-2xl font-black" id="avatar-initial">U</div>
+        <div>
+          <h1 id="profile-name" class="text-white text-xl font-extrabold">User</h1>
+          <p id="profile-location" class="text-white/70 text-sm">Menlyn, Pretoria · Gauteng</p>
+        </div>
+      </div>
+    </header>
+
+    <div class="px-4 pt-5 pb-24 space-y-4">
+
+      <!-- Location Settings -->
+      <div class="bg-white rounded-3xl p-5 shadow-sm">
+        <h2 class="text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-3">Feed Priority Settings</h2>
+        <div class="space-y-3">
+          <div>
+            <label class="text-xs font-semibold text-slate-500 uppercase tracking-widest">Suburb</label>
+            <input id="prof-suburb" type="text" class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-800 outline-none focus:border-[#4a90a4]" oninput="updateUser('suburb',this.value); syncLocFields()"/>
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-500 uppercase tracking-widest">City</label>
+            <input id="prof-city" type="text" class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-800 outline-none focus:border-[#4a90a4]" oninput="updateUser('city',this.value); syncLocFields()" />
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-500 uppercase tracking-widest">Province</label>
+            <input id="prof-province" type="text" class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-800 outline-none focus:border-[#4a90a4]" oninput="updateUser('province',this.value)" />
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-500 uppercase tracking-widest">Country</label>
+            <input id="prof-country" type="text" class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-800 outline-none focus:border-[#4a90a4]" oninput="updateUser('country',this.value)" />
+          </div>
+        </div>
+      </div>
+
+      <!-- BYOK -->
+      <div class="bg-white rounded-3xl p-5 shadow-sm">
+        <h2 class="text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-3">AI Key (BYOK)</h2>
+        <!-- Input state -->
+        <div id="byok-input-state">
+          <p class="text-xs text-slate-500 mb-3">Add your own Gemini or OpenAI key for unlimited AI analysis.</p>
+          <select id="byok-provider" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-700 mb-2 outline-none" onchange="">
+            <option value="">— Select Provider —</option>
+            <option value="gemini">Google Gemini Pro</option>
+            <option value="openai">OpenAI GPT-4</option>
+          </select>
+          <input id="byok-key" type="password" placeholder="Paste your API key…"
+            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#4a90a4]" />
+          <button onclick="updateBYOK()" class="mt-2 w-full bg-[#4b5d6c] text-white py-2.5 rounded-xl text-sm font-bold press">Save Key</button>
+        </div>
+        <!-- Saved state -->
+        <div id="byok-saved-state" class="hidden">
+          <div class="flex items-center gap-3 bg-[#e8f7fc] rounded-2xl p-4 mb-3">
+            <span class="text-2xl">🔑</span>
+            <div class="flex-1">
+              <p class="text-sm font-bold text-[#4a90a4]">API Key Active</p>
+              <p class="text-[11px] text-slate-500" id="byok-saved-label">Provider: —</p>
+            </div>
+            <button onclick="clearBYOK()" class="text-xs text-red-400 font-bold press bg-white rounded-xl px-3 py-1.5 shadow-sm">Remove</button>
+          </div>
+          <p class="text-[11px] text-slate-400">Your key is stored only on this device.</p>
+        </div>
+      </div>
+
+      <!-- Auth -->
+      <div class="bg-white rounded-3xl p-5 shadow-sm">
+        <h2 class="text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-3">Sign In / Sync</h2>
+        <div class="space-y-2">
+          <button onclick="signIn('google')" class="w-full flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 font-bold text-sm text-slate-700 press hover:bg-slate-100">
+            <svg class="w-5 h-5" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+            Continue with Google
+          </button>
+          <button onclick="signIn('apple')" class="w-full flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 font-bold text-sm text-slate-700 press hover:bg-slate-100">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+            Continue with Apple
+          </button>
+          <button onclick="signIn('facebook')" class="w-full flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 font-bold text-sm text-slate-700 press hover:bg-slate-100">
+            <svg class="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+            Continue with Facebook
+          </button>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="bg-white rounded-3xl p-5 shadow-sm">
+        <h2 class="text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-3">Reading Stats</h2>
+        <div class="grid grid-cols-3 gap-3 text-center">
+          <div><p id="stat-read" class="text-2xl font-extrabold text-slate-800">0</p><p class="text-[10px] text-slate-400 font-semibold uppercase">Read</p></div>
+          <div><p id="stat-saved" class="text-2xl font-extrabold text-slate-800">0</p><p class="text-[10px] text-slate-400 font-semibold uppercase">Saved</p></div>
+          <div><p id="stat-streak" class="text-2xl font-extrabold text-slate-800">1</p><p class="text-[10px] text-slate-400 font-semibold uppercase">Day Streak</p></div>
+        </div>
+      </div>
+
+      <!-- Platform Admin -->
+      <div class="bg-white rounded-3xl p-5 shadow-sm">
+        <h2 class="text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-3">Platform Admin</h2>
+        <button onclick="showView('admin')" class="w-full flex items-center gap-3 bg-slate-800 rounded-2xl px-4 py-3.5 press">
+          <span class="text-xl">🛠</span>
+          <span class="font-bold text-white text-sm flex-1 text-left">Admin Dashboard &amp; Stats</span>
+          <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+        </button>
+      </div>
+    </div>
+  </div><!-- /view-profile -->
+
+  <!-- ── ADMIN DASHBOARD ────────────────────────────────────────────────────── -->
+  <div id="view-admin" class="view hidden flex flex-col min-h-screen bg-slate-100 overflow-y-auto scroll-hide">
+    <header class="px-6 pt-10 pb-6 bg-[#4b5d6c] flex-shrink-0">
+      <button onclick="showView('profile')" class="text-white/70 text-sm font-semibold flex items-center gap-1.5 mb-4 press">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg> Back
+      </button>
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-xl">🛠</div>
+        <div>
+          <h1 class="text-white text-xl font-extrabold">Admin Dashboard</h1>
+          <p class="text-white/50 text-xs">Platform analytics &amp; insights</p>
+        </div>
+      </div>
+    </header>
+
+    <!-- Lock screen -->
+    <div id="admin-lock" class="flex-1 flex flex-col items-center justify-center px-8 py-12">
+      <div class="bg-white rounded-3xl p-8 shadow-xl w-full max-w-sm text-center">
+        <div class="text-5xl mb-4">🔐</div>
+        <h2 class="text-xl font-extrabold text-slate-800 mb-1">Admin Access</h2>
+        <p class="text-sm text-slate-400 mb-6">Enter the admin key to view platform stats</p>
+        <input id="admin-key-input" type="password" placeholder="Admin key…"
+          class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold outline-none focus:border-[#4b5d6c] mb-4"
+          onkeydown="if(event.key==='Enter') unlockAdmin()"/>
+        <button onclick="unlockAdmin()" class="w-full bg-[#4b5d6c] text-white py-3.5 rounded-xl font-bold text-sm press">Unlock</button>
+        <p id="admin-auth-err" class="text-xs text-red-400 mt-3 hidden">Incorrect key — check your ADMIN_SECRET</p>
+      </div>
+    </div>
+
+    <!-- Dashboard -->
+    <div id="admin-content" class="hidden px-4 pt-4 pb-24 space-y-4">
+      <!-- Visitor cards -->
+      <div class="bg-white rounded-3xl p-5 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-xs font-extrabold text-slate-400 uppercase tracking-widest">Visitors</h2>
+          <button onclick="loadAdminStats()" class="text-xs text-[#4a90a4] font-bold press">↻ Refresh</button>
+        </div>
+        <div class="grid grid-cols-2 gap-3" id="admin-visitor-grid">
+          <div class="bg-slate-50 rounded-2xl h-20 animate-pulse"></div>
+          <div class="bg-slate-50 rounded-2xl h-20 animate-pulse"></div>
+          <div class="bg-slate-50 rounded-2xl h-20 animate-pulse"></div>
+          <div class="bg-slate-50 rounded-2xl h-20 animate-pulse"></div>
+        </div>
+      </div>
+      <!-- Content & engagement -->
+      <div class="bg-white rounded-3xl p-5 shadow-sm">
+        <h2 class="text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-4">Content &amp; Engagement</h2>
+        <div id="admin-content-stats" class="bg-slate-50 rounded-2xl h-24 animate-pulse"></div>
+      </div>
+      <!-- Category breakdown -->
+      <div class="bg-white rounded-3xl p-5 shadow-sm">
+        <h2 class="text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-4">Articles by Category</h2>
+        <div id="admin-categories" class="space-y-2"><div class="bg-slate-50 rounded-2xl h-28 animate-pulse"></div></div>
+      </div>
+      <!-- Recent articles -->
+      <div class="bg-white rounded-3xl p-5 shadow-sm">
+        <h2 class="text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-3">Latest Submissions</h2>
+        <div id="admin-recent" class="space-y-1">
+          <div class="bg-slate-50 rounded-xl h-10 animate-pulse"></div>
+          <div class="bg-slate-50 rounded-xl h-10 animate-pulse"></div>
+          <div class="bg-slate-50 rounded-xl h-10 animate-pulse"></div>
+        </div>
+      </div>
+    </div>
+  </div><!-- /view-admin -->
+
+</div><!-- /app -->
+
+
+<!-- ═══════════════════════════════════════ JAVASCRIPT ════════════════════════ -->
+<script>
+// ─── Config ───────────────────────────────────────────────────────────────────
+const API_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  ? 'http://localhost:8000' : '/api';
+
+const CATEGORY_IMAGES = {
+  'Wars':     'https://images.unsplash.com/photo-1579684453423-f84349ef60b0?w=800&q=60',
+  'Politics': 'https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?w=800&q=60',
+  'Economy':  'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=800&q=60',
+  'Health':   'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800&q=60',
+  'Jobs':     'https://images.unsplash.com/photo-1521791136064-7986c2920216?w=800&q=60',
+  'Local':    'https://images.unsplash.com/photo-1486325212027-8081e485255e?w=800&q=60',
+  'Crime':    'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=800&q=60',
+  'Auctions': 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800&q=60',
+  'default':  'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=800&q=60',
+};
+
+function articleImg(n) {
+  return n.image || n.img || CATEGORY_IMAGES[n.category] || CATEGORY_IMAGES.default;
+}
+
+function timeAgo(iso) {
+  if (!iso) return 'recently';
+  try {
+    const s = (Date.now() - new Date(iso)) / 1000;
+    if (s < 60) return 'just now';
+    if (s < 3600) return Math.floor(s / 60) + ' min ago';
+    if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+    return Math.floor(s / 86400) + 'd ago';
+  } catch { return 'recently'; }
+}
+
+function norm(raw) {
+  // Normalise both API (snake_case) and static (camelCase) article formats
+  return {
+    id:           String(raw.id),
+    source:       raw.source        || '',
+    category:     raw.category      || '',
+    locationTier: raw.location_tier || raw.locationTier || '',
+    locationName: raw.location_name || raw.locationName || '',
+    title:        raw.title         || '',
+    summary:      raw.summary       || '',
+    fullContext:  raw.full_context  || raw.fullContext  || '',
+    image:        raw.image         || '',
+    impact:       raw.impact        || '',
+    actionsNow:   raw.actions_now   || raw.actionsNow   || '',
+    actionsLater: raw.actions_later || raw.actionsLater || '',
+    prophecy:     raw.prophecy      || { verse: '', text: '', insight: '' },
+    jwLink:       raw.jw_link       || raw.jwLink       || '',
+    urgent:       raw.urgent        || false,
+    url:          raw.url           || '',
+    date:         raw.date          || timeAgo(raw.published_at || raw.created_at),
+    publishedAt:  raw.published_at  || raw.created_at || '',
+  };
+}
+
+// ─── State ───────────────────────────────────────────────────────────────────
+const state = {
+  user: JSON.parse(localStorage.getItem('hungu_user') || 'null') || {
+    name: 'User', suburb: 'Menlyn', city: 'Pretoria', province: 'Gauteng', country: 'South Africa'
+  },
+  uid:       localStorage.getItem('hungu_uid')   || null,
+  token:     localStorage.getItem('hungu_token') || null,
+  byok:      JSON.parse(localStorage.getItem('hungu_byok')  || 'null') || { provider: '', key: '' },
+  saved:     JSON.parse(localStorage.getItem('hungu_saved') || '[]'),
+  read:      JSON.parse(localStorage.getItem('hungu_read')  || '[]'),
+  articles:  [],
+  feedItems:    [],
+  feedOffset:   0,
+  feedPageSize: 8,
+  authMode:  'register',
+  currentCategory: 'all',
+  currentView: 'landing',
+  reading: false,
+};
+
+function saveState() {
+  localStorage.setItem('hungu_user',  JSON.stringify(state.user));
+  localStorage.setItem('hungu_byok',  JSON.stringify(state.byok));
+  localStorage.setItem('hungu_saved', JSON.stringify(state.saved));
+  localStorage.setItem('hungu_read',  JSON.stringify(state.read));
+  if (state.uid)   localStorage.setItem('hungu_uid',   state.uid);
+  if (state.token) localStorage.setItem('hungu_token', state.token);
+}
+
+// ─── View Router ───────────────────────────────────────────────────────────────
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
+  const target = document.getElementById('view-' + name);
+  if (!target) { showView('feed'); return; }
+  target.classList.remove('hidden');
+  state.currentView = name;
+  window.scrollTo(0, 0);
+  if (name === 'feed')    renderFeed();
+  if (name === 'profile') renderProfile();
+  if (name === 'saved')   renderSaved();
+  if (name === 'admin')   openAdminView();
+}
+
+// ─── Auth & Init ─────────────────────────────────────────────────────────────
+async function initAuth() {
+  // Silently create device token in background
+  if (!state.token || !state.uid) {
+    try {
+      const res = await fetch(`${API_URL}/auth/device`, { method: 'POST' });
+      if (res.ok) {
+        const d = await res.json();
+        state.uid   = d.user_id;
+        state.token = d.token;
+        saveState();
+      }
+    } catch (e) { /* offline */ }
+  }
+
+  // Track this visit (anonymous device UUID — no PII)
+  if (state.uid) {
+    fetch(`${API_URL}/stats/ping`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ visitor_id: state.uid, page: 'visit' }),
+    }).catch(() => {});
+  }
+
+  // Load articles in background
+  loadApiArticles();
+
+  // Decide starting view
+  const visited   = localStorage.getItem('hungu_visited');
+  const onboarded = localStorage.getItem('hungu_onboarded');
+  if (!visited) {
+    renderLanding();
+    showView('landing');
+  } else if (!onboarded) {
+    showView('onboarding');
+  } else {
+    showView('feed');
+  }
+}
+
+async function loadApiArticles() {
+  try {
+    const res = await fetch(`${API_URL}/feed?limit=60`);
+    if (res.ok) {
+      state.articles = await res.json();
+      if (state.currentView === 'feed') renderFeed();
+      if (state.currentView === 'landing') renderLanding();
+    }
+  } catch (e) { /* use static NEWS */ }
+}
+
+async function syncBookmarks() {
+  if (!state.uid || !state.token) return;
+  try {
+    const res = await fetch(`${API_URL}/user/${state.uid}/bookmarks`, {
+      headers: { 'Authorization': `Bearer ${state.token}` },
+    });
+    if (res.ok) {
+      const bks = await res.json();
+      const ids = bks.map(b => String(b.article_ref));
+      state.saved = [...new Set([...state.saved.map(String), ...ids])];
+      saveState(); updateStats();
+    }
+  } catch (e) { /* offline */ }
+}
+
+// ─── Landing ──────────────────────────────────────────────────────────────────
+function renderLanding() {
+  const el = document.getElementById('landing-teasers');
+  if (!el) return;
+  const src = state.articles.length ? state.articles : NEWS;
+  el.innerHTML = src.slice(0, 3).map(raw => {
+    const a = norm(raw);
+    const img = articleImg(a);
+    return `<div class="flex items-center gap-3 bg-white/10 rounded-2xl p-3 cursor-pointer press" onclick="openArticle('${a.id}')">
+      <img src="${img}" class="w-14 h-14 rounded-xl object-cover flex-shrink-0" loading="lazy" onerror="this.src='${CATEGORY_IMAGES.default}'"/>
+      <div class="flex-1 min-w-0">
+        <p class="text-white/50 text-[10px] font-bold uppercase">${a.category} · ${a.locationName}</p>
+        <p class="text-white text-sm font-bold leading-tight line-clamp-2">${a.title}</p>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function startOnboarding() {
+  localStorage.setItem('hungu_visited', '1');
+  showView('onboarding');
+}
+function alreadyHaveAccount() {
+  localStorage.setItem('hungu_visited', '1');
+  state.authMode = 'login';
+  _updateAuthUI();
+  showView('auth');
+}
+function continueAsGuest() {
+  localStorage.setItem('hungu_visited', '1');
+  localStorage.setItem('hungu_onboarded', '1');
+  showView('feed');
+}
+
+// ─── Auth View ─────────────────────────────────────────────────────────────────
+function toggleAuthMode() {
+  state.authMode = state.authMode === 'login' ? 'register' : 'login';
+  _updateAuthUI();
+}
+function _updateAuthUI() {
+  const isLogin = state.authMode === 'login';
+  document.getElementById('auth-title').textContent    = isLogin ? 'Welcome back' : 'Create account';
+  document.getElementById('auth-subtitle').textContent = isLogin ? 'Sign in to sync your preferences' : 'Get personalised local news';
+  document.getElementById('auth-submit-btn').textContent = isLogin ? 'Sign In' : 'Create Account';
+  document.getElementById('auth-toggle-text').textContent  = isLogin ? "Don't have an account?" : 'Already have an account?';
+  document.getElementById('auth-toggle-action').textContent = isLogin ? 'Register' : 'Sign In';
+  const nameRow = document.getElementById('auth-name-row');
+  if (nameRow) nameRow.classList.toggle('hidden', isLogin);
+}
+function submitAuth() {
+  const email = (document.getElementById('auth-email').value || '').trim();
+  const name  = (document.getElementById('auth-name') ? document.getElementById('auth-name').value : '').trim();
+  if (name) { state.user.name = name; saveState(); }
+  localStorage.setItem('hungu_visited', '1');
+  showView('onboarding');
+}
+
+// ─── Onboarding ───────────────────────────────────────────────────────────────
+function submitOnboarding() {
+  const sub  = (document.getElementById('ob-suburb').value  || '').trim();
+  const city = (document.getElementById('ob-city').value    || '').trim();
+  const prov = (document.getElementById('ob-province').value|| '').trim();
+  const ctry = (document.getElementById('ob-country').value || 'South Africa').trim();
+  if (sub)  { state.user.suburb   = sub;  const f = document.getElementById('loc-from'); if (f) f.value = sub; }
+  if (city) { state.user.city     = city; const t = document.getElementById('loc-to');   if (t) t.value = city; }
+  if (prov) state.user.province = prov;
+  if (ctry) state.user.country  = ctry;
+  localStorage.setItem('hungu_onboarded', '1');
+  localStorage.setItem('hungu_visited',   '1');
+  saveState();
+  showView('feed');
+}
+function skipOnboarding() {
+  localStorage.setItem('hungu_onboarded', '1');
+  localStorage.setItem('hungu_visited',   '1');
+  showView('feed');
+}
+
+// ─── Feed ─────────────────────────────────────────────────────────────────────
+const NEWS = [
+  { id: 1, source: "Government Gazette (GPW)", category: "Local", locationTier: "Suburb", locationName: "Menlyn",
+    date: "10 mins ago", title: "Menlyn Water Main Maintenance — Saturday Outage",
+    summary: "Maintenance crews will work on the primary pipeline along Atterbury Road this Saturday.",
+    fullContext: "Tshwane Metro scheduled emergency maintenance on the bulk water supply infrastructure in the Menlyn area. Works commence 08:00, complete by 16:00 Saturday.",
+    image: "https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=800&q=60",
+    impact: "Your household in Menlyn will have no water from 08:00–16:00 on Saturday. Store at least 20 litres.",
+    actionsNow: "• Fill every container, bath, and pot with water tonight\n• Buy bottled water as backup\n• Inform family members",
+    actionsLater: "• Report any prolonged outages to Tshwane 012 358 9999\n• Consider a small storage tank for future outages",
+    prophecy: { verse: "Isaiah 41:17", text: "The afflicted and poor are seeking water, but there is none...", insight: "Infrastructure challenges remind us of the biblical promise where all needs are perfectly met." },
+    jwLink: "https://www.jw.org/en/search/?q=end+times+infrastructure+suffering", urgent: true },
+  { id: 2, source: "Gauteng Provincial Gazette", category: "Economy", locationTier: "Province", locationName: "Gauteng",
+    date: "2 hours ago", title: "New Provincial Vehicle Licensing Fee Adjustments",
+    summary: "Gauteng government announced a 5% increase in vehicle licensing fees effective next month.",
+    fullContext: "Gauteng Department of Roads and Transport gazetted a 5% increase across all vehicle license renewal fees. Change takes effect the 1st of next month.",
+    image: "https://images.unsplash.com/photo-1554224155-1696413565d3?w=800&q=60",
+    impact: "Your annual car registration will increase by approximately R75 for an average sedan.",
+    actionsNow: "• Renew your license before month-end at the old rate\n• Budget for the increase in your monthly expenses",
+    actionsLater: "• Contact your ward councillor if you object to the increase\n• Look into digital renewal via the e-NATIS portal",
+    prophecy: { verse: "James 5:4", text: "Look! The wages you kept back cry out...", insight: "Economic pressures on ordinary people echo prophetic warnings about hardship in the last days." },
+    jwLink: "https://www.jw.org/en/search/?q=end+times+economic+hardship", urgent: false },
+  { id: 3, source: "Pretoria City News", category: "Politics", locationTier: "City", locationName: "Pretoria",
+    date: "5 hours ago", title: "Tshwane Council Passes Load-Shedding Mitigation Budget",
+    summary: "City council approved R2.3 billion for solar installations at hospitals and critical infrastructure.",
+    fullContext: "Tshwane Metropolitan Council approved an emergency budget of R2.3 billion for solar PV and battery systems at hospitals, pumping stations, and traffic centres. Rollout over 18 months.",
+    image: "https://images.unsplash.com/photo-1508514177221-188b1cf16e9d?w=800&q=60",
+    impact: "Hospitals and key city infrastructure will be load-shedding free within 18 months.",
+    actionsNow: "• Monitor your ward's solar rollout schedule on the Tshwane website\n• Report critical service failures during load shedding to 012 358 9999",
+    actionsLater: "• Apply for rebates on home solar installations (available from Tshwane)\n• Consider solar investment for your household with the new government incentives",
+    prophecy: { verse: "Proverbs 21:5", text: "The plans of the diligent lead to profit...", insight: "Wise preparation echoes biblical principles of stewardship before approaching hardships." },
+    jwLink: "https://www.jw.org/en/search/?q=end+times+preparation+wisdom", urgent: false },
+];
+
+function getArticles() { return state.articles.length > 0 ? state.articles : NEWS; }
+
+const TIER_ORDER = { Suburb: 1, City: 2, Province: 3, Country: 4, Global: 5 };
+
+function renderFeed() {
+  const list  = document.getElementById('feed-list');
+  const badge = document.getElementById('location-badge');
+  const pulse = document.getElementById('pulse-location');
+  if (badge) badge.textContent = state.user.suburb || 'My Area';
+  if (pulse) pulse.textContent = 'Hyper-Local: ' + (state.user.suburb || 'My Area');
+
+  let items = getArticles();
+  if (state.currentCategory !== 'all') {
+    items = items.filter(a => (a.category || '').toLowerCase() === state.currentCategory.toLowerCase());
+  }
+  items = [...items].sort((a, b) =>
+    (TIER_ORDER[a.location_tier || a.locationTier] || 5) - (TIER_ORDER[b.location_tier || b.locationTier] || 5));
+
+  state.feedItems  = items;
+  state.feedOffset = 0;
+
+  if (!items.length) {
+    list.innerHTML = '<p class="text-slate-400 text-center py-12 text-sm">No articles in this category yet.</p>';
+    return;
+  }
+  const first = items.slice(0, state.feedPageSize);
+  state.feedOffset = first.length;
+  list.innerHTML = first.map(a => newsCard(a)).join('') + '<div id="feed-sentinel" class="h-4"></div>';
+  setTimeout(initFeedObserver, 150);
+}
+
+let feedObserver = null;
+function initFeedObserver() {
+  if (feedObserver) feedObserver.disconnect();
+  const sentinel = document.getElementById('feed-sentinel');
+  if (!sentinel) return;
+  feedObserver = new IntersectionObserver((entries) => {
+    if (entries[0].isIntersecting) appendFeedItems();
+  }, { rootMargin: '400px' });
+  feedObserver.observe(sentinel);
+}
+
+function appendFeedItems() {
+  const list     = document.getElementById('feed-list');
+  const sentinel = document.getElementById('feed-sentinel');
+  if (!list || !state.feedItems) return;
+  const batch = state.feedItems.slice(state.feedOffset, state.feedOffset + state.feedPageSize);
+  if (!batch.length) { if (feedObserver) feedObserver.disconnect(); return; }
+  const frag = document.createElement('div');
+  frag.innerHTML = batch.map(a => newsCard(a)).join('');
+  while (frag.firstChild) list.insertBefore(frag.firstChild, sentinel);
+  state.feedOffset += batch.length;
+}
+
+function newsCard(raw) {
+  const a = norm(raw);
+  const isSaved = state.saved.includes(a.id) || state.saved.includes(Number(a.id));
+  const img = articleImg(a);
+  const cat = { Wars:'⚔️', Economy:'💹', Politics:'🏛️', Health:'🏥', Jobs:'💼', Local:'📍', Crime:'🚨', Auctions:'🏠' };
+  const srcTxt  = a.source || 'HUNGU News';
+  const srcHtml = `<span class="font-bold text-slate-800 text-sm">${srcTxt}</span>`;
+  const bkSvg = (filled) => `<svg class="w-4 h-4" fill="${filled ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>`;
+  return `<article class="bg-white mb-2 cursor-pointer" onclick="openArticle('${a.id}')">
+    <div class="flex items-center gap-3 px-4 pt-4 pb-2">
+      <div class="w-10 h-10 rounded-full bg-[#e8f7fc] border-2 border-[#87ceeb]/40 flex items-center justify-center text-lg flex-shrink-0">${cat[a.category]||'📰'}</div>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-1.5 flex-wrap leading-tight">${srcHtml}${a.urgent ? ' <span class="text-[10px] text-red-500 font-bold">● LIVE</span>' : ''}</div>
+        <p class="text-[11px] text-slate-400 mt-0.5">${a.date} · <span class="text-[#4a90a4] font-semibold">${a.locationName}</span> · ${a.category}</p>
+      </div>
+      <button onclick="event.stopPropagation(); toggleSave('${a.id}')" id="save-${a.id}" class="w-9 h-9 rounded-full hover:bg-slate-100 flex items-center justify-center flex-shrink-0 ${isSaved ? 'text-[#4a90a4]' : 'text-slate-400'}">
+        ${bkSvg(isSaved)}
+      </button>
+    </div>
+    <p class="px-4 pb-2 text-[15px] font-extrabold text-slate-900 leading-snug">${a.title}</p>
+    <div class="w-full" style="aspect-ratio:16/9">
+      <img src="${img}" alt="${a.title}" class="w-full h-full object-cover" loading="lazy" onerror="this.src='${CATEGORY_IMAGES.default}'"/>
+    </div>
+    <div class="px-4 pt-3 pb-1">
+      <p class="text-slate-500 text-[13px] leading-relaxed line-clamp-2">${a.summary}</p>
+    </div>
+    <div class="border-t border-slate-100 mt-2 flex">
+      <button onclick="event.stopPropagation(); toggleSave('${a.id}')" class="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[12px] font-semibold ${isSaved ? 'text-[#4a90a4]' : 'text-slate-500'} hover:bg-slate-50 press">
+        ${bkSvg(isSaved)} ${isSaved ? 'Saved' : 'Save'}
+      </button>
+      <button onclick="event.stopPropagation(); speakText(_buildTtsText(norm(getArticles().find(x=>String(x.id)==='${a.id}'))), '${a.id}')" class="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[12px] font-semibold text-slate-500 hover:bg-slate-50 press">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072M12 6v12m3.536-13.536a9 9 0 010 12.728M6.464 8.464a5 5 0 000 7.072"/></svg>
+        Listen
+      </button>
+      <button onclick="event.stopPropagation(); shareArticle('${a.id}')" class="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[12px] font-semibold text-slate-500 hover:bg-slate-50 press">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+        Share
+      </button>
+    </div>
+  </article>`;
+}
+
+// ─── Article Detail ────────────────────────────────────────────────────────────
+function _sectionImpact(a) {
+  const imp = (a.impact || '').trim();
+  if (!imp || imp === 'Impact analysis pending.') return '';
+  return `<section class="bg-[#87ceeb] text-white p-5 sm:p-6 rounded-3xl mb-6 shadow-md">
+    <p class="sec-tag text-white/70 mb-3">🎯 What This Means For You · ${a.locationName}</p>
+    <p class="text-base sm:text-lg font-bold leading-snug">${imp}</p>
+  </section>`;
+}
+
+function _sectionActions(a) {
+  const now   = (a.actionsNow   || '').trim();
+  const later = (a.actionsLater || '').trim();
+  if (!now && !later) return '';
+  return `<section class="mb-6">
+    <p class="sec-tag text-slate-400 mb-3">🛠 What You Can Do</p>
+    <div class="grid sm:grid-cols-2 gap-3">
+      ${now ? `<div class="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+        <p class="sec-tag text-[#4a90a4] mb-3">⚡ Right Now</p>
+        ${formatActions(now)}
+      </div>` : ''}
+      ${later ? `<div class="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+        <p class="sec-tag text-slate-400 mb-3">📅 In Coming Days</p>
+        ${formatActions(later)}
+      </div>` : ''}
+    </div>
+  </section>`;
+}
+
+function _sectionSpiritual(a, jwLink) {
+  const verse   = a.prophecy && a.prophecy.verse;
+  const insight = a.prophecy && a.prophecy.insight;
+  if (!verse && !jwLink) return '';
+  return `<section class="bg-amber-50 border border-amber-200 p-5 sm:p-6 rounded-3xl mb-6">
+    <p class="sec-tag text-amber-600 mb-3">🙏 Spiritual Perspective</p>
+    ${verse ? `<blockquote class="text-lg sm:text-xl font-serif italic text-amber-900 leading-snug mb-2">"${verse}: ${a.prophecy.text || ''}"</blockquote>` : ''}
+    ${insight ? `<p class="text-sm text-amber-800 leading-relaxed mb-4 font-medium">${insight}</p>` : ''}
+    <a href="${jwLink}" target="_blank" rel="noopener noreferrer"
+      class="inline-flex items-center gap-2 bg-amber-100 hover:bg-amber-200 text-amber-900 px-4 py-2.5 rounded-full text-xs font-bold transition-colors">
+      📖 Explore related prophecy on JW.org
+    </a>
+  </section>`;
+}
+
+function formatActions(text) {
+  if (!text || !text.trim()) return '';
+  const lines = text.split(/\n|\u2022|–|-/).map(l => l.trim()).filter(l => l.length > 3);
+  if (lines.length > 1) {
+    return '<ul class="space-y-2">' + lines.map(l =>
+      `<li class="flex items-start gap-2 text-sm text-slate-700"><span class="text-[#4a90a4] font-bold mt-0.5 flex-shrink-0">•</span><span>${l}</span></li>`
+    ).join('') + '</ul>';
+  }
+  return `<p class="text-sm text-slate-700">${text}</p>`;
+}
+
+function openArticle(id) {
+  // Ping stats
+  if (state.uid) {
+    fetch(`${API_URL}/stats/ping`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ visitor_id: state.uid, page: 'article' }),
+    }).catch(() => {});
+  }
+
+  const raw = getArticles().find(x => String(x.id) === String(id));
+  if (!raw) return;
+  const a = norm(raw);
+  if (!state.read.includes(a.id)) { state.read.push(a.id); saveState(); updateStats(); }
+  const isSaved = state.saved.includes(a.id) || state.saved.includes(Number(a.id));
+  const img = articleImg(a);
+  const jwLink = a.jwLink || `https://www.jw.org/en/search/?q=${encodeURIComponent((a.prophecy.verse || '') + ' end times prophecy')}`;
+
+  document.getElementById('detail-content').innerHTML = `
+    <!-- Sticky top bar -->
+    <div class="sticky top-0 z-40 flex items-center justify-between px-4 sm:px-8 py-3 bg-white/95 backdrop-blur border-b border-slate-100">
+      <button onclick="showView('feed')" class="flex items-center gap-1.5 text-slate-500 font-bold text-sm press">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg> Back
+      </button>
+      <div class="flex items-center gap-2">
+        <button onclick="speakText(_buildTtsText(norm(getArticles().find(x=>String(x.id)==='${a.id}'))), '${a.id}')" class="bg-[#87ceeb] text-white px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1 press">
+          🔊 Listen
+        </button>
+        <button onclick="toggleSave('${a.id}'); document.getElementById('save-detail').setAttribute('fill', state.saved.includes('${a.id}') ? 'currentColor' : 'none')"
+          class="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center press">
+          <svg id="save-detail" class="w-4 h-4 ${isSaved ? 'text-[#4a90a4]' : 'text-slate-500'}" fill="${isSaved ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+        </button>
+      </div>
+    </div>
+    <!-- Hero image -->
+    <img src="${img}" alt="${a.title}" class="w-full object-cover" style="max-height:52vh;object-position:center" onerror="this.src='${CATEGORY_IMAGES.default}'" loading="eager"/>
+    <!-- Body -->
+    <div class="px-5 sm:px-8 lg:px-16 max-w-3xl mx-auto pt-6 pb-28" id="detail-body">
+      <!-- Meta -->
+      <div class="flex flex-wrap items-center gap-2 mb-4">
+        <span class="text-[10px] font-black uppercase tracking-tight px-2.5 py-1 rounded-full bg-[#e8f7fc] text-[#4a90a4]">${a.locationName}</span>
+        ${a.urgent ? '<span class="text-[10px] text-red-500 font-bold animate-pulse">● URGENT</span>' : ''}
+        ${a.url
+          ? `<a href="${a.url}" target="_blank" rel="noopener noreferrer" class="text-[10px] text-[#4a90a4] font-bold hover:underline">${a.source}</a>`
+          : `<span class="text-[10px] text-slate-600 font-semibold">${a.source}</span>`
+        }<span class="text-[10px] text-slate-400"> · ${a.date}</span>
+      </div>
+      <!-- Title -->
+      <h1 class="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 leading-tight mb-7">${a.title}</h1>
+
+      <!-- SECTION 1 — Summary -->
+      <section class="mb-6">
+        <p class="sec-tag text-slate-400 flex items-center gap-1.5 mb-3"><span class="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center font-black text-[9px]">1</span> Summary</p>
+        <p class="text-slate-700 text-base sm:text-lg leading-relaxed">${a.summary || a.fullContext}</p>
+      </section>
+
+      ${a.category === 'Auctions' ? '' : _sectionImpact(a)}
+      ${_sectionActions(a)}
+
+      ${a.fullContext && a.fullContext !== a.summary ? `
+      <section class="mb-6">
+        <p class="text-slate-600 text-sm sm:text-base leading-relaxed">${a.fullContext}</p>
+      </section>` : ''}
+
+      ${a.category === 'Auctions' ? '' : _sectionSpiritual(a, jwLink)}
+
+      ${a.url ? `<p class="text-xs text-slate-400 text-center mb-4"><a href="${a.url}" target="_blank" rel="noopener noreferrer" class="underline underline-offset-2">📎 Read original source</a></p>` : ''}
+    </div>`;
+  showView('detail');
+}
+
+// ─── Bookmarks ─────────────────────────────────────────────────────────────────
+function toggleSave(id) {
+  const sid = String(id);
+  const idx = state.saved.indexOf(sid);
+  if (idx > -1) {
+    state.saved.splice(idx, 1);
+    if (state.uid && state.token)
+      fetch(`${API_URL}/user/${state.uid}/bookmark/${sid}`, {
+        method: 'DELETE', headers: { 'Authorization': `Bearer ${state.token}` },
+      }).catch(() => {});
+  } else {
+    state.saved.push(sid);
+    if (state.uid && state.token)
+      fetch(`${API_URL}/user/${state.uid}/bookmark/${sid}`, {
+        method: 'POST', headers: { 'Authorization': `Bearer ${state.token}` },
+      }).catch(() => {});
+  }
+  saveState(); updateStats();
+  // Update save button in feed if visible
+  const btn = document.getElementById('save-' + sid);
+  if (btn) {
+    const svg = btn.querySelector('svg');
+    const is = state.saved.includes(sid);
+    if (svg) { svg.setAttribute('fill', is ? 'currentColor' : 'none'); svg.classList.toggle('text-[#4a90a4]', is); svg.classList.toggle('text-slate-500', !is); }
+  }
+  if (state.currentView === 'feed') renderFeed();
+}
+
+function shareArticle(id) {
+  const raw = getArticles().find(x => String(x.id) === String(id));
+  if (!raw) return;
+  const a = norm(raw);
+  const shareUrl = a.url || window.location.href;
+  const txt = `${a.title}\n\n${a.summary}\n\n${shareUrl}`;
+  // Always copy to clipboard first
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(txt).then(() => {
+      // Show brief toast
+      const toast = document.createElement('div');
+      toast.textContent = '✓ Link copied!';
+      toast.className = 'fixed top-4 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-4 py-2 rounded-full text-sm font-bold z-50 shadow-lg';
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 2000);
+    }).catch(() => {});
+  }
+  // Also open native share if available
+  if (navigator.share) {
+    navigator.share({ title: a.title, text: a.summary || a.title, url: shareUrl }).catch(() => {});
+  }
+}
+
+function renderSaved() {
+  const list  = document.getElementById('saved-list');
+  const all   = getArticles();
+  const items = all.filter(x => state.saved.includes(String(x.id)) || state.saved.includes(Number(x.id)));
+  if (!items.length) {
+    list.innerHTML = '<p class="text-slate-400 text-center py-12 text-sm">No bookmarks yet.<br>Tap the bookmark icon on any article.</p>';
+    return;
+  }
+  list.innerHTML = items.map(raw => {
+    const a = norm(raw);
+    const img = articleImg(a);
+    return `<div class="bg-white rounded-2xl p-4 flex gap-3 cursor-pointer shadow-sm press" onclick="openArticle('${a.id}')">
+      <img src="${img}" class="w-16 h-16 rounded-xl object-cover flex-shrink-0" loading="lazy" onerror="this.src='${CATEGORY_IMAGES.default}'"/>
+      <div class="flex-1 min-w-0">
+        <p class="text-[10px] text-slate-400 font-semibold mb-0.5">${a.source}</p>
+        <h4 class="text-sm font-bold text-slate-900 leading-tight line-clamp-2">${a.title}</h4>
+        <p class="text-[10px] text-[#4a90a4] font-bold mt-1">${a.category} · ${a.locationName}</p>
+      </div>
+      <button onclick="event.stopPropagation(); toggleSave('${a.id}'); renderSaved()"
+        class="self-start w-7 h-7 bg-red-50 rounded-full flex items-center justify-center press flex-shrink-0">
+        <svg class="w-3.5 h-3.5 text-red-400" fill="currentColor" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+      </button>
+    </div>`;
+  }).join('');
+}
+
+// ─── Profile ───────────────────────────────────────────────────────────────────
+function renderProfile() {
+  document.getElementById('profile-name').textContent    = state.user.name;
+  document.getElementById('profile-location').textContent = `${state.user.suburb}, ${state.user.city} · ${state.user.province}`;
+  document.getElementById('avatar-initial').textContent  = state.user.name.charAt(0).toUpperCase();
+  document.getElementById('prof-suburb').value   = state.user.suburb;
+  document.getElementById('prof-city').value     = state.user.city;
+  document.getElementById('prof-province').value = state.user.province;
+  document.getElementById('prof-country').value  = state.user.country;
+  document.getElementById('byok-provider').value = state.byok.provider;
+  document.getElementById('byok-key').value      = '';
+  // BYOK state
+  if (state.byok.key) {
+    document.getElementById('byok-input-state').classList.add('hidden');
+    document.getElementById('byok-saved-state').classList.remove('hidden');
+    const lbl = document.getElementById('byok-saved-label');
+    if (lbl) lbl.textContent = 'Provider: ' + (state.byok.provider || 'Not set');
+  } else {
+    document.getElementById('byok-input-state').classList.remove('hidden');
+    document.getElementById('byok-saved-state').classList.add('hidden');
+  }
+  updateStats();
+}
+
+function updateStats() {
+  const sr = document.getElementById('stat-read');
+  const ss = document.getElementById('stat-saved');
+  if (sr) sr.textContent = state.read.length;
+  if (ss) ss.textContent = state.saved.length;
+}
+
+function updateUser(field, value) { state.user[field] = value; saveState(); }
+
+function syncLocFields() {
+  const f = document.getElementById('loc-from');
+  const t = document.getElementById('loc-to');
+  if (f) f.value = state.user.suburb;
+  if (t) t.value = state.user.city;
+  const badge = document.getElementById('location-badge');
+  if (badge) badge.textContent = state.user.suburb;
+}
+
+function updateBYOK() {
+  const provider = document.getElementById('byok-provider').value;
+  const key      = (document.getElementById('byok-key').value || '').trim();
+  if (!key) return;
+  state.byok.provider = provider;
+  state.byok.key      = key;
+  localStorage.setItem('hungu_byok', JSON.stringify(state.byok));
+  document.getElementById('byok-input-state').classList.add('hidden');
+  document.getElementById('byok-saved-state').classList.remove('hidden');
+  const lbl = document.getElementById('byok-saved-label');
+  if (lbl) lbl.textContent = 'Provider: ' + (provider || 'Not set');
+}
+
+function clearBYOK() {
+  state.byok = { provider: '', key: '' };
+  localStorage.setItem('hungu_byok', JSON.stringify(state.byok));
+  document.getElementById('byok-input-state').classList.remove('hidden');
+  document.getElementById('byok-saved-state').classList.add('hidden');
+  document.getElementById('byok-provider').value = '';
+  document.getElementById('byok-key').value = '';
+}
+
+function signIn(provider) {
+  state.user.name = provider.charAt(0).toUpperCase() + provider.slice(1) + ' User';
+  saveState(); renderProfile();
+  alert(`Sign-in with ${provider} — connect your OAuth credentials in the API service to enable full sync.`);
+}
+
+async function fetchStats() {
+  const el = document.getElementById('platform-stats');
+  if (!el) return;
+  if (!state.token) { el.innerHTML = '<p class="text-xs text-slate-400 py-2">Sign in to view stats.</p>'; return; }
+  el.innerHTML = '<p class="text-xs text-slate-400 animate-pulse py-2">Loading…</p>';
+  try {
+    const res = await fetch(`${API_URL}/stats`, { headers: { Authorization: `Bearer ${state.token}` } });
+    if (!res.ok) throw new Error();
+    const s = await res.json();
+    el.innerHTML = `<div class="grid grid-cols-2 gap-2 text-center">
+      <div class="bg-slate-50 rounded-2xl p-3"><p class="text-xl font-extrabold text-slate-800">${Number(s.unique_visitors||0).toLocaleString()}</p><p class="text-[10px] text-slate-400 font-bold uppercase">Unique Visitors</p></div>
+      <div class="bg-slate-50 rounded-2xl p-3"><p class="text-xl font-extrabold text-slate-800">${Number(s.total_views||0).toLocaleString()}</p><p class="text-[10px] text-slate-400 font-bold uppercase">Total Views</p></div>
+      <div class="bg-[#e8f7fc] rounded-2xl p-3"><p class="text-xl font-extrabold text-[#4a90a4]">${s.active_last_15min||0}</p><p class="text-[10px] text-[#4a90a4] font-bold uppercase">Active Now</p></div>
+      <div class="bg-slate-50 rounded-2xl p-3"><p class="text-xl font-extrabold text-slate-800">${s.daily_active||0}</p><p class="text-[10px] text-slate-400 font-bold uppercase">24h Visitors</p></div>
+      <div class="bg-slate-50 rounded-2xl col-span-2 p-3 text-left"><p class="text-[10px] text-slate-400 font-bold uppercase mb-1">Engagement</p><p class="text-sm text-slate-700 font-medium"><span class="font-extrabold text-slate-900">${s.total_bookmarks||0}</span> saves · <span class="font-extrabold text-slate-900">${s.total_articles_live||0}</span> live articles</p></div>
+    </div>`;
+  } catch(e) {
+    el.innerHTML = '<p class="text-xs text-red-400 py-2">Could not load stats. Try again later.</p>';
+  }
+}
+
+// ─── Search card helpers ───────────────────────────────────────────────────────
+function swapLocations() {
+  const f = document.getElementById('loc-from');
+  const t = document.getElementById('loc-to');
+  if (!f || !t) return;
+  [f.value, t.value] = [t.value, f.value];
+  state.user.suburb = f.value; state.user.city = t.value; saveState();
+}
+
+function setDate(val) {
+  state.date = val;
+  document.querySelectorAll('.date-btn').forEach(b => { b.classList.remove('active'); b.classList.add('text-slate-400', 'font-medium'); });
+  const btn = document.getElementById('btn-' + val);
+  if (btn) { btn.classList.add('active'); btn.classList.remove('text-slate-400', 'font-medium'); }
+}
+function showDatePicker() { document.getElementById('date-picker').click(); }
+function setCustomDate(val) { state.date = val; }
+
+function setPassengers(n) {
+  state.passengers = n;
+  for (let i = 1; i <= 4; i++) {
+    const b = document.getElementById('p' + i);
+    if (b) b.classList.toggle('active', i === n);
+  }
+}
+
+// ─── Category filter ──────────────────────────────────────────────────────────
+function filterCategory(cat) {
+  state.currentCategory = cat;
+  document.querySelectorAll('.cat-btn').forEach(b => {
+    b.className = 'cat-btn flex-shrink-0 bg-white text-slate-600 px-4 py-1.5 rounded-full text-xs font-bold press';
+  });
+  const active = document.getElementById('cat-' + cat);
+  if (active) active.className = 'cat-btn flex-shrink-0 bg-[#4a90a4] text-white px-4 py-1.5 rounded-full text-xs font-bold press';
+  renderFeed();
+}
+
+// ─── TTS ──────────────────────────────────────────────────────────────────────
+let _ttsVoice = null;
+
+function getSpeakVoice() {
+  if (_ttsVoice) return _ttsVoice;
+  const voices = window.speechSynthesis.getVoices();
+  if (!voices.length) return null;
+  // Prefer South African English voices, then other quality English voices
+  const preferred = [
+    // South African English voices (en-ZA)
+    'Google South Africa English Female', 'Google South Africa English Male',
+    'Google South Africa English',
+    'Microsoft Leah Online (Natural) - English (South Africa)',
+    'Microsoft Leah - English (South Africa)',
+    // Other quality English voices
+    'Google UK English Female', 'Google UK English Male',
+    'Google US English', 'Google US English Female',
+    'Microsoft Aria Online (Natural) - English (United States)',
+    'Microsoft Zira - English (United States)',
+    'Microsoft David - English (United States)',
+    'Samantha', 'Daniel', 'Karen', 'Moira', 'Fiona', 'Alex',
+  ];
+  for (const name of preferred) {
+    const v = voices.find(v => v.name === name);
+    if (v) { _ttsVoice = v; return v; }
+  }
+  // Fallback: any en-ZA voice first, then any English voice
+  const zaVoice = voices.find(v => v.lang && v.lang.startsWith('en-ZA'));
+  if (zaVoice) { _ttsVoice = zaVoice; return zaVoice; }
+  _ttsVoice = voices.find(v => v.lang && v.lang.startsWith('en')) || voices[0] || null;
+  return _ttsVoice;
+}
+
+// Re-pick voice whenever browser finishes loading the voice list
+if ('speechSynthesis' in window) {
+  window.speechSynthesis.onvoiceschanged = () => { _ttsVoice = null; getSpeakVoice(); };
+}
+
+// Strip emojis and special symbols from text before speaking
+function _stripEmoji(text) {
+  return text.replace(/[\u{1F000}-\u{1FFFF}]/gu, '')
+             .replace(/[\u{2600}-\u{27BF}]/gu, '')
+             .replace(/[\u{FE00}-\u{FEFF}]/gu, '')
+             .replace(/[\u{200D}\u{20E3}\u{FE0F}\u{E0020}-\u{E007F}]/gu, '')
+             .replace(/[\u{2300}-\u{23FF}]/gu, '')
+             .replace(/[\u{2B50}\u{2B55}\u{2934}\u{2935}]/gu, '')
+             .replace(/[\u{25A0}-\u{25FF}]/gu, '')
+             .replace(/[\u{2700}-\u{27BF}]/gu, '')
+             .replace(/●/g, '')
+             .replace(/\s{2,}/g, ' ')
+             .trim();
+}
+
+// Track which articles have been read aloud
+const _ttsRead = new Set();
+
+function speakText(text, articleId) {
+  if (!('speechSynthesis' in window)) { alert('Text-to-speech not supported.'); return; }
+  // Toggle: if currently speaking, just stop
+  if (window.speechSynthesis.speaking) {
+    window.speechSynthesis.cancel();
+    return;
+  }
+  // Read-once: skip if already read this article
+  if (articleId && _ttsRead.has(String(articleId))) return;
+  const clean = _stripEmoji(String(text).replace(/<[^>]*>/g, '').replace(/&#39;/g, "'")).trim();
+  if (!clean) return;
+  if (articleId) _ttsRead.add(String(articleId));
+  const utt   = new SpeechSynthesisUtterance(clean);
+  const voice = getSpeakVoice();
+  if (voice) utt.voice = voice;
+  utt.rate   = 0.9;
+  utt.pitch  = 1.0;
+  utt.volume = 1.0;
+  window.speechSynthesis.speak(utt);
+}
+
+// Build TTS text from article fields: heading, summary, impact, actions now only
+function _buildTtsText(a) {
+  let parts = [a.title];
+  if (a.summary) parts.push(a.summary);
+  if (a.impact && a.impact !== 'Impact analysis pending.') parts.push('What this means for you. ' + a.impact);
+  if (a.actionsNow) parts.push('What you can do now. ' + a.actionsNow);
+  return parts.join('. ');
+}
+
+function toggleReading() {
+  if (state.reading) {
+    window.speechSynthesis && window.speechSynthesis.cancel();
+    state.reading = false;
+  } else {
+    const items = getArticles().slice(0, 5);
+    const script = items.map(x => { const a = norm(x); return _buildTtsText(a); }).join('. Next article: ');
+    // Force speak (bypass toggle-stop)
+    window.speechSynthesis.cancel();
+    const clean = _stripEmoji(script.replace(/<[^>]*>/g, '').replace(/&#39;/g, "'")).trim();
+    if (!clean) return;
+    const utt = new SpeechSynthesisUtterance(clean);
+    const voice = getSpeakVoice();
+    if (voice) utt.voice = voice;
+    utt.rate = 0.9; utt.pitch = 1.0; utt.volume = 1.0;
+    utt.onend = () => { state.reading = false; document.getElementById('read-label').textContent = 'Read my news'; document.getElementById('read-icon').innerHTML = '<path d="M8 5v14l11-7z"/>'; };
+    window.speechSynthesis.speak(utt);
+    state.reading = true;
+  }
+  document.getElementById('read-label').textContent = state.reading ? 'Reading your news…' : 'Read my news';
+  document.getElementById('read-icon').innerHTML = state.reading
+    ? '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>'
+    : '<path d="M8 5v14l11-7z"/>';
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  const f = document.getElementById('loc-from');
+  const t = document.getElementById('loc-to');
+  if (f) f.value = state.user.suburb;
+  if (t) t.value = state.user.city;
+  initAuth();
+});
+
+</script>
+
+</body>
+</html>
