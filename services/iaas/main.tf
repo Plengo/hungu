@@ -256,8 +256,9 @@ resource "huaweicloud_rds_pg_database_privilege" "app_user_priv" {
   instance_id = huaweicloud_rds_instance.hungu_db.id
   db_name     = huaweicloud_rds_database.hungu_appdb.name
   users {
-    name       = var.db_username
-    readonly   = false
+    name        = var.db_username
+    readonly    = false
+    schema_name = "public"
   }
   depends_on = [huaweicloud_rds_database.hungu_appdb]
 }
