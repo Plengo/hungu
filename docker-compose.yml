@@ -21,6 +21,7 @@ services:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - JWT_SECRET=${JWT_SECRET}
       - WORKER_API_KEY=${WORKER_API_KEY}
+      - ADMIN_SECRET=${ADMIN_SECRET}
     networks:
       - hungu-net
     depends_on:

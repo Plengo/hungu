@@ -52,6 +52,7 @@ jobs:
   terraform:
     name: "Terraform (${{ github.event.inputs.tf_action || 'auto' }})"
     runs-on: ubuntu-latest
+    environment: hungu
     defaults:
       run:
         working-directory: ${{ env.TF_WORKING_DIR }}
@@ -151,6 +152,7 @@ jobs:
     name: "Deploy app to ECS"
     needs: terraform
     runs-on: ubuntu-latest
+    environment: hungu
     if: needs.terraform.outputs.apply_ran == 'true'
 
     steps:
