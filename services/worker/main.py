@@ -41,11 +41,12 @@ from typing import Optional
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger("hungu-worker")
 
-GEMINI_API_KEY  = os.getenv("GEMINI_API_KEY", "")
-API_BASE_URL    = os.getenv("API_BASE_URL", "http://api:8000")
-WORKER_API_KEY  = os.getenv("WORKER_API_KEY", "")
-GEMINI_RPM      = 15                  # free-tier: 15 requests per minute
-AI_DELAY        = 60 / GEMINI_RPM    # 4 seconds between AI calls
+GEMINI_API_KEY   = os.getenv("GEMINI_API_KEY", "")
+DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
+GROQ_API_KEY     = os.getenv("GROQ_API_KEY", "")
+API_BASE_URL     = os.getenv("API_BASE_URL", "http://api:8000")
+WORKER_API_KEY   = os.getenv("WORKER_API_KEY", "")
+AI_DELAY         = 4                  # seconds between AI calls
 
 HIGH_PRIORITY = {"Wars", "Politics", "Economy", "Health"}
 
@@ -108,29 +109,107 @@ def content_hash(title: str, body: str = "") -> str:
     blob = (title.lower().strip() + (body or "")[:200].lower().strip()).encode()
     return hashlib.sha256(blob).hexdigest()
 
-# ─── Gemini AI ────────────────────────────────────────────────────────────────
+# ─── Multi-provider AI cascade ────────────────────────────────────────────────
+# Priority: Gemini 2.0 Flash → Gemini 1.5 Flash → DeepSeek → Groq
+# On 429 (rate limit), retry once after backoff, then fall through to next provider.
 
-def call_gemini(prompt: str, api_key: str = "") -> Optional[dict]:
-    key = api_key or GEMINI_API_KEY
-    if not key:
-        log.warning("No Gemini API key — skipping AI enrichment")
-        return None
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={key}"
+def _parse_ai_json(text: str) -> Optional[dict]:
+    """Extract JSON from AI response text (handles ```json wrappers)."""
+    m = re.search(r"```json\s*(.*?)\s*```", text, re.DOTALL)
+    return json.loads(m.group(1) if m else text)
+
+
+def _call_gemini_model(prompt: str, model: str, api_key: str) -> Optional[dict]:
+    """Call a specific Gemini model. Returns parsed dict or None."""
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
     payload = json.dumps({
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {"temperature": 0.4, "maxOutputTokens": 1024},
     }).encode()
-    try:
-        req = urllib.request.Request(url, data=payload, method="POST",
-                                     headers={"Content-Type": "application/json"})
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            data = json.loads(resp.read())
-        text = data["candidates"][0]["content"]["parts"][0]["text"]
-        m = re.search(r"```json\s*(.*?)\s*```", text, re.DOTALL)
-        return json.loads(m.group(1) if m else text)
-    except Exception as exc:
-        log.error("Gemini error: %s", exc)
+    req = urllib.request.Request(url, data=payload, method="POST",
+                                 headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        data = json.loads(resp.read())
+    text = data["candidates"][0]["content"]["parts"][0]["text"]
+    return _parse_ai_json(text)
+
+
+def _call_openai_compatible(prompt: str, api_key: str, base_url: str, model: str) -> Optional[dict]:
+    """Call an OpenAI-compatible API (DeepSeek, Groq, etc). Returns parsed dict or None."""
+    url = f"{base_url}/chat/completions"
+    payload = json.dumps({
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.4,
+        "max_tokens": 1024,
+    }).encode()
+    req = urllib.request.Request(url, data=payload, method="POST", headers={
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}",
+    })
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        data = json.loads(resp.read())
+    text = data["choices"][0]["message"]["content"]
+    return _parse_ai_json(text)
+
+
+def _is_rate_limited(exc: Exception) -> bool:
+    """Check if an exception is a 429 rate-limit error."""
+    return "429" in str(exc)
+
+
+def call_ai(prompt: str) -> Optional[dict]:
+    """
+    Try each AI provider in order. On 429, wait 60s and retry once,
+    then move to the next provider. Returns parsed JSON dict or None.
+    """
+    providers = []
+
+    # 1. Gemini 2.0 Flash
+    if GEMINI_API_KEY:
+        providers.append(("Gemini-2.0-Flash", lambda p: _call_gemini_model(p, "gemini-2.0-flash", GEMINI_API_KEY)))
+        # 2. Gemini 1.5 Flash (same key, separate rate limit)
+        providers.append(("Gemini-1.5-Flash", lambda p: _call_gemini_model(p, "gemini-1.5-flash", GEMINI_API_KEY)))
+
+    # 3. DeepSeek
+    if DEEPSEEK_API_KEY:
+        providers.append(("DeepSeek", lambda p: _call_openai_compatible(p, DEEPSEEK_API_KEY, "https://api.deepseek.com/v1", "deepseek-chat")))
+
+    # 4. Groq
+    if GROQ_API_KEY:
+        providers.append(("Groq-Llama3.3", lambda p: _call_openai_compatible(p, GROQ_API_KEY, "https://api.groq.com/openai/v1", "llama-3.3-70b-versatile")))
+
+    if not providers:
+        log.warning("No AI API keys configured — skipping enrichment")
         return None
+
+    for name, call_fn in providers:
+        try:
+            result = call_fn(prompt)
+            if result:
+                log.info("AI success via %s", name)
+                return result
+        except Exception as exc:
+            if _is_rate_limited(exc):
+                log.warning("%s rate-limited (429) — waiting 60s then retrying...", name)
+                time.sleep(60)
+                try:
+                    result = call_fn(prompt)
+                    if result:
+                        log.info("AI success via %s (retry)", name)
+                        return result
+                except Exception as retry_exc:
+                    log.warning("%s retry failed: %s — trying next provider", name, retry_exc)
+            else:
+                log.warning("%s error: %s — trying next provider", name, exc)
+
+    log.error("All AI providers exhausted — enrichment failed for this article")
+    return None
+
+
+# Keep backward-compatible alias
+def call_gemini(prompt: str, api_key: str = "") -> Optional[dict]:
+    return call_ai(prompt)
 
 def build_prompt(title: str, raw_text: str, source: str, category: str) -> str:
     return f"""You are the HUNGU AI engine — a South African Christian news analyser.
@@ -681,21 +760,11 @@ def process_and_submit(raw_articles: list) -> list:
                 post_article({**raw, "raw_text": raw.get("raw_text", "")})
             continue
 
-        # Rate-limit guard
-        if req_count >= GEMINI_RPM:
-            elapsed = time.time() - minute_start
-            if elapsed < 60:
-                sleep_for = 61 - elapsed
-                log.info("Rate limit — sleeping %.1fs", sleep_for)
-                time.sleep(sleep_for)
-            req_count = 0
-            minute_start = time.time()
-
+        # Rate-limit is handled inside call_ai cascade — just add delay
         prompt = (build_auction_prompt(raw["title"], raw.get("raw_text", ""), raw["source"])
                   if raw.get("category") == "Auctions"
                   else build_prompt(raw["title"], raw.get("raw_text", ""), raw["source"], raw["category"]))
-        ai = call_gemini(prompt)
-        req_count += 1
+        ai = call_ai(prompt)
         time.sleep(AI_DELAY)
 
         if ai:
