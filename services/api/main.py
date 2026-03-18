@@ -37,6 +37,8 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from jose import JWTError, jwt
+from google.oauth2 import id_token as google_id_token
+from google.auth.transport import requests as google_requests
 
 from db import (
     init_db, get_db, make_content_hash, make_url_hash,
@@ -49,8 +51,9 @@ from db import (
 JWT_SECRET      = os.getenv("JWT_SECRET", "change-this-secret")
 JWT_ALGORITHM   = "HS256"
 JWT_EXPIRE_DAYS = 180
-WORKER_API_KEY  = os.getenv("WORKER_API_KEY", "")
-ADMIN_SECRET    = os.getenv("ADMIN_SECRET", "")
+WORKER_API_KEY    = os.getenv("WORKER_API_KEY", "")
+ADMIN_SECRET      = os.getenv("ADMIN_SECRET", "")
+GOOGLE_CLIENT_ID  = os.getenv("GOOGLE_CLIENT_ID", "")
 
 bearer = HTTPBearer(auto_error=False)
 
@@ -200,6 +203,57 @@ async def health():
     return {"status": "ok", "timestamp": datetime.datetime.utcnow().isoformat()}
 
 # ─── Auth ─────────────────────────────────────────────────────────────────────
+
+@app.get("/config")
+async def get_config():
+    """Return public runtime config (safe to expose — no secrets)."""
+    return {"google_client_id": GOOGLE_CLIENT_ID}
+
+
+class GoogleAuthIn(BaseModel):
+    id_token: str
+
+
+@app.post("/auth/google")
+async def google_auth(body: GoogleAuthIn, db: Session = Depends(get_db)):
+    """Verify a Google ID token and return a HUNGU JWT."""
+    if not GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=501, detail="Google OAuth not configured — set GOOGLE_CLIENT_ID")
+    try:
+        idinfo = google_id_token.verify_oauth2_token(
+            body.id_token,
+            google_requests.Request(),
+            GOOGLE_CLIENT_ID,
+        )
+    except ValueError:
+        raise HTTPException(status_code=401, detail="Invalid Google token")
+
+    google_id  = idinfo["sub"]
+    email      = idinfo.get("email", "")
+    name       = idinfo.get("name", "")
+    avatar     = idinfo.get("picture", "")
+
+    # Find existing user by google_id, else create
+    user = db.query(UserModel).filter(UserModel.google_id == google_id).first()
+    if not user:
+        user = UserModel(google_id=google_id, email=email, display_name=name)
+        db.add(user)
+        try:
+            db.commit()
+            db.refresh(user)
+        except IntegrityError:
+            db.rollback()
+            user = db.query(UserModel).filter(UserModel.google_id == google_id).first()
+
+    uid = str(user.id)
+    return {
+        "user_id": uid,
+        "token":   make_token(uid),
+        "name":    user.display_name or name,
+        "email":   email,
+        "avatar":  avatar,
+    }
+
 
 @app.post("/auth/device", status_code=201)
 async def create_device_user(db: Session = Depends(get_db)):
