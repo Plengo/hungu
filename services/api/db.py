@@ -153,6 +153,10 @@ class User(Base):
     province     = Column(String(100))
     country      = Column(String(100), default="South Africa")
 
+    # ── Google OAuth (nullable — device-only users have no Google account) ─────
+    google_id = Column(String(255), unique=True, nullable=True)
+    email     = Column(String(255), nullable=True)
+
     # ── Timestamps ─────────────────────────────────────────────────────────────
     created_at   = Column(DateTime(timezone=True), nullable=False,
                           default=lambda: datetime.now(timezone.utc))
