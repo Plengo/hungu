@@ -152,60 +152,6 @@ jobs:
         run: |
           PUBLIC_IP=$(terraform output -raw public_ip)
           echo "public_ip=$PUBLIC_IP" >> "$GITHUB_OUTPUT"
-
-  # ───────────────────────────────────────────────────────────────────────────
-  # JOB 2: Deploy app via SSH (runs only after a successful apply)
-  # ───────────────────────────────────────────────────────────────────────────
-  deploy-app:
-    name: "Deploy app to ECS"
-    needs: terraform
-    runs-on: ubuntu-latest
-    environment: hungu
-    if: needs.terraform.outputs.apply_ran == 'true'
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Wait for cloud-init to finish
-        # The ECS startup script (cloud-init) can take ~90 s on first boot.
-        # On subsequent deploys this sleep is a no-op effectively.
-        run: sleep 90
-
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ needs.terraform.outputs.public_ip }}
-          username: ubuntu
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          timeout: "10m"
-          script: |
-            set -euo pipefail
-
-            REPO_URL="https://github.com/${{ github.repository }}.git"
-            APP_DIR="/opt/hungu"
-
-            # Clone on first deploy; pull on subsequent ones
-            if [ ! -d "$APP_DIR/.git" ]; then
-              sudo git clone "$REPO_URL" "$APP_DIR"
-            else
-              cd "$APP_DIR" && sudo git pull --ff-only
-            fi
-
-            cd "$APP_DIR"
-
-            # .env was written by Terraform cloud-init on first boot.
-            # If it somehow doesn't exist yet, bail with a clear message.
-            if [ ! -f "$APP_DIR/.env" ]; then
-              echo "ERROR: .env not found at $APP_DIR/.env"
-              echo "cloud-init may still be running — wait a minute and re-run the workflow."
-              exit 1
-            fi
-
-            # Pull latest images and (re)start containers
-            sudo docker compose \
-              -f docker-compose.yml \
-              -f docker-compose.prod.yml \
-              up -d --build --remove-orphans
-
-            echo "Deploy complete. App should be live at https://hungu.co.za"
+          echo "### 🚀 Infrastructure Ready" >> "$GITHUB_STEP_SUMMARY"
+          echo "Server IP: \`$PUBLIC_IP\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "SSH: \`ssh ubuntu@$PUBLIC_IP\`" >> "$GITHUB_STEP_SUMMARY"

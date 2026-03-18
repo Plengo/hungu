@@ -1,17 +1,24 @@
 """
 HUNGU Worker — Scraper & AI Processing Agent
 
-Tiered scraping schedule
+Tiered scraping schedule (hourly for all news, saves Gemini credits)
 ────────────────────────
-  breaking_world   (BBC World + Al Jazeera)    :  every 15 min   — Wars, Politics (International)
-  breaking_sa      (Daily Maverick + News24)   :  every 15 min   — SA Breaking news
-  local_politics   (gov.za news)               :  every 15 min   — Politics, Economy
-  sa_local_news    (TimesLIVE + Mail&Guardian) :  every 30 min   — SA local/general
+  breaking_world   (BBC World + Al Jazeera)    :  every 60 min   — Wars, Politics (International)
+  breaking_sa      (Daily Maverick + News24)   :  every 60 min   — SA Breaking news
+  local_politics   (gov.za news)               :  every 60 min   — Politics, Economy
+  sa_local_news    (TimesLIVE + Mail&Guardian) :  every 60 min   — SA local/general
   sa_x_accounts    (Nitter RSS of verified SA) :  every 60 min   — SA official statements
   gazette          (GPW gov gazettes)          :  every 6 hours  — Local, Economy, Health
   policy           (Parliament/StatsSA)        :  every 6 hours  — Politics, Economy
   jobs             (DPSA vacancies)            :  every 24 hours — Jobs
   archive_old      (cleanup job)               :  every 24 hours — marks old articles archived
+
+Enrichment-first strategy
+─────────────────────────
+  Before scraping new articles, the worker checks for unenriched backlog.
+  If any articles are missing AI fields (summary, impact, actions, prophecy),
+  those are enriched FIRST. New scrapes only happen once the backlog is clear.
+  This ensures every article in the feed is fully populated.
 
 Deduplication
 ─────────────
@@ -58,17 +65,17 @@ CATEGORY_IMAGES = {
 # ─── Tiered scraping schedule ─────────────────────────────────────────────────
 # (name, function_name, interval_seconds)
 SCHEDULE = [
-    ("breaking_world",   "scrape_bbc_world",     900),    # 15 min  — BBC World + Al Jazeera
-    ("breaking_sa",      "scrape_sa_breaking",   900),    # 15 min  — Daily Maverick + News24
-    ("local_gov_news",   "scrape_gov_news",       900),    # 15 min
-    ("sa_local_news",    "scrape_sa_local",      1800),   # 30 min  — TimesLIVE + M&G
-    ("sa_x_accounts",    "scrape_sa_x",          3600),   # 60 min  — Nitter/X verified SA
-    ("gazette_gpw",      "scrape_gazette",      21600),   # 6 hours
-    ("policy_parliament","scrape_parliament",   21600),   # 6 hours
-    ("jobs_dpsa",        "scrape_jobs",         86400),   # 24 hours
-    ("auctions",         "scrape_auctions",     21600),   # 6 hours — property auctions
-    ("archive_cleanup",  "archive_old_posts",   86400),   # 24 hours
-    ("enrich_old",       "enrich_old_articles",  300),    #  5 min  — retroactive AI enrichment
+    ("enrich_old",       "enrich_old_articles",  180),    #  3 min  — retroactive AI enrichment (FIRST)
+    ("breaking_world",   "scrape_bbc_world",    3600),    # 60 min  — BBC World + Al Jazeera
+    ("breaking_sa",      "scrape_sa_breaking",  3600),    # 60 min  — Daily Maverick + News24
+    ("local_gov_news",   "scrape_gov_news",     3600),    # 60 min
+    ("sa_local_news",    "scrape_sa_local",     3600),    # 60 min  — TimesLIVE + M&G
+    ("sa_x_accounts",    "scrape_sa_x",         3600),    # 60 min  — Nitter/X verified SA
+    ("gazette_gpw",      "scrape_gazette",     21600),    # 6 hours
+    ("policy_parliament","scrape_parliament",  21600),    # 6 hours
+    ("jobs_dpsa",        "scrape_jobs",        86400),    # 24 hours
+    ("auctions",         "scrape_auctions",    21600),    # 6 hours — property auctions
+    ("archive_cleanup",  "archive_old_posts",  86400),    # 24 hours
 ]
 
 _last_run: dict[str, float] = {}
@@ -111,7 +118,7 @@ def call_gemini(prompt: str, api_key: str = "") -> Optional[dict]:
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={key}"
     payload = json.dumps({
         "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.4, "maxOutputTokens": 512},
+        "generationConfig": {"temperature": 0.4, "maxOutputTokens": 1024},
     }).encode()
     try:
         req = urllib.request.Request(url, data=payload, method="POST",
@@ -126,27 +133,35 @@ def call_gemini(prompt: str, api_key: str = "") -> Optional[dict]:
         return None
 
 def build_prompt(title: str, raw_text: str, source: str, category: str) -> str:
-    return f"""You are the HUNGU AI engine. Analyse this South African news article and respond ONLY with valid JSON (no markdown wrapper) matching this schema exactly:
+    return f"""You are the HUNGU AI engine — a South African Christian news analyser.
+Analyse this article and respond ONLY with valid JSON (no markdown, no ```json wrapper).
+Every field below is REQUIRED — do NOT leave any field empty or null.
 
 {{
-  "summary": "A comprehensive 3-4 sentence summary that goes BEYOND the headline. Include key details, numbers, dates, context, and implications that the headline does NOT cover. Do NOT just rephrase the title — provide genuinely new information from the article body.",
-  "impact": "1-2 sentences — what does this mean for an ordinary South African today? Be specific and practical.",
-  "actions_now": "2-3 bullet points of what the reader can do RIGHT NOW (today or this week)",
-  "actions_later": "2-3 bullet points of what the reader can do in coming days or weeks",
-  "verse": "Bible verse reference e.g. Matthew 24:7",
-  "verse_text": "Short quote from that verse",
-  "insight": "1 sentence connecting this news event to biblical end-times prophecy",
-  "jw_topic": "3-5 keywords for a JW.org Bible topic search related to this article (e.g. 'end times economic hardship')",
+  "summary": "A comprehensive 3-5 sentence summary. Go BEYOND the headline: include key details, numbers, dates, people involved, context, and implications. If the article text is short, expand with relevant background a South African reader needs.",
+  "impact": "2-3 sentences explaining what this means for an ordinary South African citizen today. Be specific: mention how it affects their wallet, safety, rights, community, or daily life. Never say 'coming soon' or 'pending'.",
+  "actions_now": "• Action 1: something the reader can do RIGHT NOW\n• Action 2: another immediate step\n• Action 3: a practical thing to check or prepare today",
+  "actions_later": "• Action 1: something to do in the coming days or weeks\n• Action 2: a longer-term preparation step\n• Action 3: how to stay informed or get involved",
+  "verse": "A relevant Bible verse reference, e.g. Matthew 24:7",
+  "verse_text": "The actual text of that verse (short quote)",
+  "insight": "1-2 sentences connecting this news event to biblical prophecy or spiritual principles. How does God's Word help us understand what is happening?",
+  "jw_topic": "3-5 keywords for a JW.org Bible topic search (e.g. 'end times economic hardship God's kingdom')",
   "urgent": true or false
 }}
 
-IMPORTANT: The summary MUST add value beyond the headline. If the article text is short, expand with context about why this matters and what background the reader needs.
+RULES:
+1. The summary MUST be 3-5 sentences minimum with genuinely useful detail.
+2. The impact MUST be practical and specific to South Africans — never generic.
+3. actions_now and actions_later MUST each have 2-3 bullet points starting with •
+4. The verse MUST be a real Bible verse relevant to the article topic.
+5. The insight MUST connect the news to scripture — be thoughtful, not generic.
+6. Return ONLY the JSON object. No extra text before or after.
 
 Source: {source}
 Category: {category}
 Title: {title}
 Article text:
-{raw_text[:2000]}
+{raw_text[:3000]}
 """
 
 # ─── Deduplication check ──────────────────────────────────────────────────────
@@ -555,11 +570,11 @@ def archive_old_posts() -> None:
         log.error("archive_old_posts failed: %s", exc)
 
 def enrich_old_articles() -> None:
-    """Retroactively enrich articles missing AI-generated fields (actions, impact, prophecy)."""
+    """Retroactively enrich articles missing AI-generated fields (summary, impact, actions, prophecy)."""
     log.info("Checking for articles needing enrichment...")
     try:
         req = urllib.request.Request(
-            f"{API_BASE_URL}/articles/needs-enrichment?limit=5",
+            f"{API_BASE_URL}/articles/needs-enrichment?limit=10",
             headers=_worker_headers(),
         )
         with urllib.request.urlopen(req, timeout=10) as resp:
@@ -570,6 +585,7 @@ def enrich_old_articles() -> None:
     if not articles:
         log.info("All articles fully enriched.")
         return
+    log.info("Enriching %d articles with missing AI fields...", len(articles))
     for art in articles:
         prompt = build_prompt(
             art["title"],
@@ -602,6 +618,20 @@ def enrich_old_articles() -> None:
                 log.info("Enriched: '%s'", art["title"][:60])
         except Exception as exc2:
             log.error("Enrich PATCH failed %s: %s", art["id"], exc2)
+
+
+def _has_enrichment_backlog() -> bool:
+    """Check if there are unenriched articles waiting. Used to delay new scrapes."""
+    try:
+        req = urllib.request.Request(
+            f"{API_BASE_URL}/articles/needs-enrichment?limit=1",
+            headers=_worker_headers(),
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            articles = json.loads(resp.read())
+            return len(articles) > 0
+    except Exception:
+        return False
 
 
 # ─── AI Processing pipeline ───────────────────────────────────────────────────
@@ -695,8 +725,9 @@ def process_and_submit(raw_articles: list) -> list:
                     "urgent":      ai.get("urgent", False),
                 })
         else:
+            # Gemini failed — save with empty fields so the enrichment queue picks them up
             raw.setdefault("summary",  raw.get("raw_text", "")[:120])
-            raw.setdefault("impact",   "Impact analysis pending.")
+            raw.setdefault("impact",   "")
             raw.setdefault("actions_now",  "")
             raw.setdefault("actions_later", "")
             raw.setdefault("prophecy", {"verse": "", "text": "", "insight": ""})
@@ -734,14 +765,20 @@ _SCRAPER_FNS = {
 }
 
 def run_scheduler():
-    log.info("HUNGU Worker starting — checking schedule every 60 s")
+    log.info("HUNGU Worker starting — enrichment-first strategy, checking every 60 s")
     while True:
         for name, fn_name, interval in SCHEDULE:
             if _should_run(name, interval):
+                # Enrichment-first: skip new scrapes if backlog exists
+                is_scraper = fn_name not in ("archive_old_posts", "enrich_old_articles")
+                if is_scraper and _has_enrichment_backlog():
+                    log.info("⏸ Skipping %s — enrichment backlog exists, enriching first", name)
+                    continue
+
                 fn = _SCRAPER_FNS[fn_name]
-                log.info("▶ Running scraper: %s", name)
+                log.info("▶ Running: %s", name)
                 try:
-                    if fn_name in ("archive_old_posts", "enrich_old_articles"):
+                    if not is_scraper:
                         fn()
                     else:
                         articles = fn()

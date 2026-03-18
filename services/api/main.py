@@ -267,7 +267,18 @@ async def needs_enrichment(
         db.query(ArticleModel)
           .filter(
               ArticleModel.status == "active",
-              or_(ArticleModel.actions_now == None, ArticleModel.actions_now == "")
+              ArticleModel.category != "Auctions",
+              or_(
+                  ArticleModel.actions_now == None,
+                  ArticleModel.actions_now == "",
+                  ArticleModel.impact == None,
+                  ArticleModel.impact == "",
+                  ArticleModel.impact == "Impact analysis pending.",
+                  ArticleModel.prophecy_verse == None,
+                  ArticleModel.prophecy_verse == "",
+                  ArticleModel.prophecy_insight == None,
+                  ArticleModel.prophecy_insight == "",
+              )
           )
           .order_by(ArticleModel.created_at.desc())
           .limit(limit)
