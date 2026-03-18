@@ -80,7 +80,7 @@ jobs:
             -backend-config="bucket=${{ env.OBS_BUCKET }}" \
             -backend-config="key=${{ env.OBS_KEY }}" \
             -backend-config="region=${{ env.OBS_REGION }}" \
-            -backend-config="endpoints={s3=\"${{ env.OBS_ENDPOINT }}\"}" \
+            -backend-config="endpoint=${{ env.OBS_ENDPOINT }}" \
             -backend-config="access_key=${{ secrets.HW_ACCESS_KEY }}" \
             -backend-config="secret_key=${{ secrets.HW_SECRET_KEY }}" \
             -backend-config="skip_credentials_validation=true" \
@@ -88,7 +88,7 @@ jobs:
             -backend-config="skip_region_validation=true" \
             -backend-config="skip_requesting_account_id=true" \
             -backend-config="skip_s3_checksum=true" \
-            -backend-config="use_path_style=true"
+            -backend-config="force_path_style=true"
 
       - name: Terraform Format Check
         run: terraform fmt -check -recursive
