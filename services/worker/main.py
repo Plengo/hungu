@@ -235,7 +235,8 @@ Every field below is REQUIRED — do NOT leave any field empty or null.
   "actions_now": "• Action 1: something the reader can do RIGHT NOW\n• Action 2: another immediate step\n• Action 3: a practical thing to check or prepare today",
   "actions_later": "• Action 1: something to do in the coming days or weeks\n• Action 2: a longer-term preparation step\n• Action 3: how to stay informed or get involved",
   "verse": "A relevant Bible verse reference, e.g. Matthew 24:7",
-  "verse_text": "The actual text of that verse (short quote)",
+  "verse_text": "The NWT (New World Translation) text of that verse — quote it accurately",
+  "verse_niv": "The same verse quoted in the NIV (New International Version) translation",
   "insight": "1-2 sentences connecting this news event to biblical prophecy or spiritual principles. How does God's Word help us understand what is happening?",
   "jw_topic": "3-5 keywords for a JW.org Bible topic search (e.g. 'end times economic hardship God's kingdom')",
   "urgent": true or false
@@ -246,8 +247,9 @@ RULES:
 2. The impact MUST be practical and specific to South Africans — never generic.
 3. actions_now and actions_later MUST each have 2-3 bullet points starting with •
 4. The verse MUST be a real Bible verse relevant to the article topic.
-5. The insight MUST connect the news to scripture — be thoughtful, not generic.
-6. Return ONLY the JSON object. No extra text before or after.
+5. verse_text MUST be the NWT wording; verse_niv MUST be the NIV wording of the SAME verse.
+6. The insight MUST connect the news to scripture — be thoughtful, not generic.
+7. Return ONLY the JSON object. No extra text before or after.
 
 Source: {source}
 Category: {category}
