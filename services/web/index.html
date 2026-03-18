@@ -13,7 +13,7 @@
   <title>HUNGU | Actionable News</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Google AdSense -->
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX" crossorigin="anonymous"></script>
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6660023958349772" crossorigin="anonymous"></script>
   <script>
     tailwind.config = {
       theme: {
@@ -886,15 +886,31 @@ function appendFeedItems() {
   state.feedOffset += batch.length;
 }
 
-const AD_SLOT = 'XXXXXXXXXX'; // Replace with your AdSense ad slot ID
+const AD_CLIENT = 'ca-pub-6660023958349772';
+const AD_SLOT   = '1810465878';
+const AD_READY  = true;
+
+const IS_LOCAL = ['localhost', '127.0.0.1', '0.0.0.0'].includes(window.location.hostname);
+
 function adCard() {
   const id = 'ad-' + Math.random().toString(36).slice(2, 8);
-  setTimeout(() => {
-    try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch(e) {}
-  }, 100);
-  return `<div class="bg-white mb-2 px-4 py-3">
+  if (AD_READY && !IS_LOCAL) {
+    setTimeout(() => {
+      try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch(e) {}
+    }, 100);
+    return `<div class="bg-white mb-2 px-4 py-3">
+      <p class="text-[9px] font-bold uppercase text-slate-400 tracking-widest mb-2">Advertisement</p>
+      <ins class="adsbygoogle" style="display:block" data-ad-client="${AD_CLIENT}" data-ad-slot="${AD_SLOT}" data-ad-format="fluid" data-full-width-responsive="true" id="${id}"></ins>
+    </div>`;
+  }
+  // Placeholder on localhost or before AdSense is configured
+  return `<div class="bg-white mb-2 px-4 py-4">
     <p class="text-[9px] font-bold uppercase text-slate-400 tracking-widest mb-2">Advertisement</p>
-    <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-XXXXXXXXXXXXXXXX" data-ad-slot="${AD_SLOT}" data-ad-format="fluid" data-full-width-responsive="true" id="${id}"></ins>
+    <div class="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 flex flex-col items-center justify-center gap-2 py-6">
+      <span class="text-2xl">📢</span>
+      <p class="text-xs font-bold text-slate-400">Google AdSense Ad</p>
+      <p class="text-[10px] text-slate-300">728×90 · Fluid</p>
+    </div>
   </div>`;
 }
 
@@ -1266,12 +1282,18 @@ function setPassengers(n) {
 
 // ─── Category filter ──────────────────────────────────────────────────────────
 function _buildFeedHtml(articles, startOffset) {
-  return articles.map((a, i) => {
+  const cards = articles.map((a, i) => {
     const pos = startOffset + i + 1; // 1-based position in full list
     const card = newsCard(a);
     // Insert ad after every 5th article
     return (pos % 5 === 0) ? card + adCard() : card;
-  }).join('');
+  });
+  // Always append an ad at the end if the last card didn't already have one
+  const lastPos = startOffset + articles.length;
+  if (articles.length > 0 && lastPos % 5 !== 0) {
+    cards.push(adCard());
+  }
+  return cards.join('');
 }
 
 const CAT_ICONS = { Wars:'⚔️', Economy:'💹', Politics:'🏛️', Health:'🏥', Local:'📍', Crime:'🚨', Environment:'🌿' };

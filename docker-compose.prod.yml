@@ -3,7 +3,8 @@
 #
 # Key differences from dev:
 #   - All services have restart: always
-#   - Web binds to port 80
+#   - Web binds to port 80 and 443
+#   - SSL certs and certbot webroot mounted into nginx
 #   - Environment variables are injected at runtime from .env
 #
 # Usage (on the ECS server):
@@ -16,6 +17,10 @@ services:
     restart: always
     ports:
       - "80:80"
+      - "443:443"
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/www/certbot:/var/www/certbot:ro
 
   api:
     restart: always
