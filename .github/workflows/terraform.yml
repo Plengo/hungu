@@ -28,13 +28,14 @@ on:
 #
 #  HW_ACCESS_KEY    Huawei Cloud Access Key (AK)
 #  HW_SECRET_KEY    Huawei Cloud Secret Key (SK)
-#  DB_PASSWORD      RDS PostgreSQL password
-#  DB_USERNAME      RDS PostgreSQL username (e.g. hungu)
+#  DB_PASSWORD      PostgreSQL password (Docker container)
+#  DB_USERNAME      PostgreSQL username (e.g. hungu)
 #  GEMINI_API_KEY   Google Gemini API key
 #  JWT_SECRET       Random 32-byte hex string  (openssl rand -hex 32)
 #  WORKER_API_KEY   Shared secret worker→API   (openssl rand -hex 16)
-#  SSH_PUBLIC_KEY   Contents of ~/.ssh/id_rsa.pub
-#  SSH_PRIVATE_KEY  Contents of ~/.ssh/id_rsa
+#  ADMIN_SECRET     Admin dashboard key
+#  SSH_PUBLIC_KEY   Contents of ~/.ssh/hungu_rsa.pub
+#  SSH_PRIVATE_KEY  Contents of ~/.ssh/hungu_rsa
 # ─────────────────────────────────────────────────────────────────────────────
 
 env:
@@ -108,6 +109,7 @@ jobs:
           TF_VAR_gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           TF_VAR_jwt_secret: ${{ secrets.JWT_SECRET }}
           TF_VAR_worker_api_key: ${{ secrets.WORKER_API_KEY }}
+          TF_VAR_admin_secret: ${{ secrets.ADMIN_SECRET }}
           TF_VAR_ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
         run: terraform plan -out=tfplan
 
@@ -124,6 +126,7 @@ jobs:
           TF_VAR_gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           TF_VAR_jwt_secret: ${{ secrets.JWT_SECRET }}
           TF_VAR_worker_api_key: ${{ secrets.WORKER_API_KEY }}
+          TF_VAR_admin_secret: ${{ secrets.ADMIN_SECRET }}
           TF_VAR_ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
         run: |
           terraform apply -auto-approve tfplan
@@ -139,6 +142,7 @@ jobs:
           TF_VAR_gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           TF_VAR_jwt_secret: ${{ secrets.JWT_SECRET }}
           TF_VAR_worker_api_key: ${{ secrets.WORKER_API_KEY }}
+          TF_VAR_admin_secret: ${{ secrets.ADMIN_SECRET }}
           TF_VAR_ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
         run: terraform destroy -auto-approve
 
