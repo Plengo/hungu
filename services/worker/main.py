@@ -501,8 +501,8 @@ def scrape_jobs() -> list:
 # ── House Auctions (Sheriff / Gazette) ─────────────────────────────────────────
 
 def scrape_auctions() -> list:
-    """Scrape sheriff auction and property sale notices from public sources."""
-    log.info("Scraping house auction notices...")
+    """Scrape property auction notices from the Government Gazette only."""
+    log.info("Scraping Government Gazette auction notices...")
     results = []
 
     # SA Government Gazette — filter for property/auction keywords
@@ -517,21 +517,7 @@ def scrape_auctions() -> list:
                                 "category": "Auctions", "location_tier": "Country",
                                 "location_name": "South Africa"})
 
-    # Sheriff SA — property auction listings
-    body = http_get("https://www.sheriffs.org.za/rss")
-    if body and "<item>" in body:
-        items = _parse_rss(body, limit=10)
-        results += [{**i, "source": "Sheriff SA", "category": "Auctions",
-                     "location_tier": "Country", "location_name": "South Africa"} for i in items]
-
-    # Rawson Auctions RSS (major SA property auctioneer)
-    body = http_get("https://www.rawson.co.za/auctions/rss")
-    if body and "<item>" in body:
-        items = _parse_rss(body, limit=8)
-        results += [{**i, "source": "Rawson Auctions", "category": "Auctions",
-                     "location_tier": "Country", "location_name": "South Africa"} for i in items]
-
-    log.info("Found %d auction notices", len(results))
+    log.info("Found %d gazette auction notices", len(results))
     return results
 
 

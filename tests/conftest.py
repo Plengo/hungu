@@ -17,6 +17,7 @@ import pytest
 os.environ["DB_URL"]         = "sqlite:///:memory:"
 os.environ["JWT_SECRET"]     = "test-jwt-secret-do-not-use-in-prod"
 os.environ["WORKER_API_KEY"] = "test-worker-key"
+os.environ["ADMIN_SECRET"]   = "test-admin-secret"
 
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "services", "api"))
@@ -96,6 +97,12 @@ def worker_headers():
         "X-Worker-Key":  os.environ["WORKER_API_KEY"],
         "Content-Type":  "application/json",
     }
+
+
+@pytest.fixture()
+def admin_headers():
+    """Returns X-Admin-Key header dict."""
+    return {"X-Admin-Key": os.environ["ADMIN_SECRET"]}
 
 
 # ── Sample article factory ─────────────────────────────────────────────────────
