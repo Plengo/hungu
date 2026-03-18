@@ -2,8 +2,8 @@
 # Merges with docker-compose.yml to run HUNGU on the Huawei Cloud ECS.
 #
 # Key differences from dev:
-#   - db service is disabled (uses Huawei RDS PostgreSQL instead)
 #   - All services have restart: always
+#   - Web binds to port 80
 #   - Environment variables are injected at runtime from .env
 #
 # Usage (on the ECS server):
@@ -23,20 +23,20 @@ services:
       - DB_URL=${DB_URL}
       - JWT_SECRET=${JWT_SECRET}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
-    # Remove the local db dependency — RDS is always available
-    depends_on: []
+      - WORKER_API_KEY=${WORKER_API_KEY}
+      - ADMIN_SECRET=${ADMIN_SECRET}
 
   worker:
     restart: always
     environment:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
       - API_BASE_URL=http://api:8000
+      - WORKER_API_KEY=${WORKER_API_KEY}
       - SCRAPE_INTERVAL_SECS=${SCRAPE_INTERVAL_SECS:-3600}
     depends_on:
       - api
 
-  # Disable the local PostgreSQL container — Huawei RDS is used instead.
-  # Saves ~200 MB RAM on the free-tier ECS (1 GB total).
   db:
-    deploy:
-      replicas: 0
+    restart: always

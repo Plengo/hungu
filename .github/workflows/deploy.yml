@@ -89,7 +89,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
         with:
           host: ${{ steps.ip.outputs.public_ip }}
-          username: ubuntu
+          username: root
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           timeout: "10m"
           envs: GH_TOKEN,GH_REPO
@@ -103,15 +103,15 @@ jobs:
             # git clone would fail on non-empty dir, so use init+pull instead
             if [ ! -d "$APP_DIR/.git" ]; then
               cd "$APP_DIR"
-              sudo git init
-              sudo git remote add origin "$REPO_URL"
-              sudo git fetch origin main
-              sudo git checkout -f main
+              git init
+              git remote add origin "$REPO_URL"
+              git fetch origin main
+              git checkout -f main
             else
               cd "$APP_DIR"
               # Update remote URL with fresh token (previous token expired)
-              sudo git remote set-url origin "$REPO_URL"
-              sudo git pull --ff-only
+              git remote set-url origin "$REPO_URL"
+              git pull --ff-only
             fi
 
             cd "$APP_DIR"
@@ -123,7 +123,7 @@ jobs:
             fi
 
             # Rebuild and restart containers
-            sudo docker compose \
+            docker compose \
               -f docker-compose.yml \
               -f docker-compose.prod.yml \
               up -d --build --remove-orphans
