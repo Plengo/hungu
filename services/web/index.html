@@ -263,7 +263,7 @@
 
     <!-- Sticky header -->
     <header class="sticky top-0 z-40 bg-[#87ceeb] px-4 pt-6 pb-4 flex justify-between items-center">
-      <div class="flex items-center gap-2 cursor-pointer press" onclick="showView('search')">
+      <div class="flex items-center gap-2 cursor-pointer press" onclick="showView('feed')">
         <img src="/hungu.png" alt="HUNGU" class="h-8 object-contain" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'text-xl font-black italic text-white',textContent:'HUNGU'}))"/>
       </div>
       <div class="flex gap-3 items-center">
@@ -309,7 +309,7 @@
 
     <!-- Bottom nav -->
     <nav class="fixed bottom-0 left-0 w-full bg-white/90 backdrop-blur border-t border-slate-100 flex justify-around py-3 pb-5 z-50 shadow-2xl">
-      <button onclick="showView('search')" class="flex flex-col items-center gap-0.5 text-slate-400 press">
+      <button onclick="showView('feed')" class="flex flex-col items-center gap-0.5 text-slate-400 press">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
         <span class="text-[9px] font-bold uppercase">Search</span>
       </button>
