@@ -689,7 +689,7 @@ def enrich_old_articles() -> None:
             art.get("full_context") or art.get("summary", ""),
             art["source"], art["category"]
         )
-        ai = call_gemini(prompt)
+        ai = call_ai(prompt)
         time.sleep(AI_DELAY)
         if not ai:
             continue
