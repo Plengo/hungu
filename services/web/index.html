@@ -12,6 +12,8 @@
   <link rel="apple-touch-icon" href="/hungu.png" />
   <title>HUNGU | Actionable News</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google AdSense -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX" crossorigin="anonymous"></script>
   <script>
     tailwind.config = {
       theme: {
@@ -291,15 +293,8 @@
     </div>
 
     <!-- Category filter -->
-    <div class="px-4 sm:px-8 pt-4 flex gap-2 overflow-x-auto scroll-hide pb-1 max-w-screen-lg mx-auto w-full">
+    <div id="cat-bar" class="px-4 sm:px-8 pt-4 flex gap-2 overflow-x-auto scroll-hide pb-1 max-w-screen-lg mx-auto w-full">
       <button onclick="filterCategory('all')" id="cat-all" class="cat-btn flex-shrink-0 bg-[#4a90a4] text-white px-4 py-1.5 rounded-full text-xs font-bold press">All</button>
-      <button onclick="filterCategory('Wars')" id="cat-Wars" class="cat-btn flex-shrink-0 bg-white text-slate-600 px-4 py-1.5 rounded-full text-xs font-bold press">⚔️ Wars</button>
-      <button onclick="filterCategory('Economy')" id="cat-Economy" class="cat-btn flex-shrink-0 bg-white text-slate-600 px-4 py-1.5 rounded-full text-xs font-bold press">💹 Economy</button>
-      <button onclick="filterCategory('Politics')" id="cat-Politics" class="cat-btn flex-shrink-0 bg-white text-slate-600 px-4 py-1.5 rounded-full text-xs font-bold press">🏛️ Politics</button>
-      <button onclick="filterCategory('Health')" id="cat-Health" class="cat-btn flex-shrink-0 bg-white text-slate-600 px-4 py-1.5 rounded-full text-xs font-bold press">🏥 Health</button>
-      <button onclick="filterCategory('Jobs')" id="cat-Jobs" class="cat-btn flex-shrink-0 bg-white text-slate-600 px-4 py-1.5 rounded-full text-xs font-bold press">💼 Jobs</button>
-      <button onclick="filterCategory('Local')" id="cat-Local" class="cat-btn flex-shrink-0 bg-white text-slate-600 px-4 py-1.5 rounded-full text-xs font-bold press">📍 Local</button>
-      <button onclick="filterCategory('Auctions')" id="cat-Auctions" class="cat-btn flex-shrink-0 bg-white text-slate-600 px-4 py-1.5 rounded-full text-xs font-bold press">🏠 Auctions</button>
     </div>
 
     <!-- Feed list -->
@@ -598,7 +593,7 @@ function norm(raw) {
     impact:       raw.impact        || '',
     actionsNow:   raw.actions_now   || raw.actionsNow   || '',
     actionsLater: raw.actions_later || raw.actionsLater || '',
-    prophecy:     raw.prophecy      || { verse: '', text: '', insight: '' },
+    prophecy:     { verse: (raw.prophecy||{}).verse||'', text: (raw.prophecy||{}).text||'', verse2: (raw.prophecy||{}).verse2||'', insight: (raw.prophecy||{}).insight||'' },
     jwLink:       raw.jw_link       || raw.jwLink       || '',
     urgent:       raw.urgent        || false,
     url:          raw.url           || '',
@@ -637,14 +632,23 @@ function saveState() {
 }
 
 // ─── View Router ───────────────────────────────────────────────────────────────
-function showView(name) {
+function showView(name, opts = {}) {
   document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
   const target = document.getElementById('view-' + name);
   if (!target) { showView('feed'); return; }
   target.classList.remove('hidden');
+  const prevView = state.currentView;
   state.currentView = name;
   window.scrollTo(0, 0);
-  if (name === 'feed')    renderFeed();
+  if (name === 'feed') {
+    // If returning from article detail, restore scroll without re-rendering
+    if (prevView === 'detail' && state._feedScrollTop != null) {
+      const feedList = document.getElementById('feed-list');
+      if (feedList) requestAnimationFrame(() => { feedList.scrollTop = state._feedScrollTop; });
+    } else {
+      renderFeed();
+    }
+  }
   if (name === 'profile') renderProfile();
   if (name === 'saved')   renderSaved();
   if (name === 'admin')   openAdminView();
@@ -838,6 +842,7 @@ function renderFeed() {
   if (badge) badge.textContent = state.user.suburb || 'My Area';
   if (pulse) pulse.textContent = 'Hyper-Local: ' + (state.user.suburb || 'My Area');
 
+  renderCategoryTabs();
   let items = getArticles();
   if (state.currentCategory !== 'all') {
     items = items.filter(a => (a.category || '').toLowerCase() === state.currentCategory.toLowerCase());
@@ -854,7 +859,7 @@ function renderFeed() {
   }
   const first = items.slice(0, state.feedPageSize);
   state.feedOffset = first.length;
-  list.innerHTML = first.map(a => newsCard(a)).join('') + '<div id="feed-sentinel" class="h-4"></div>';
+  list.innerHTML = _buildFeedHtml(first, 0) + '<div id="feed-sentinel" class="h-4"></div>';
   setTimeout(initFeedObserver, 150);
 }
 
@@ -876,9 +881,21 @@ function appendFeedItems() {
   const batch = state.feedItems.slice(state.feedOffset, state.feedOffset + state.feedPageSize);
   if (!batch.length) { if (feedObserver) feedObserver.disconnect(); return; }
   const frag = document.createElement('div');
-  frag.innerHTML = batch.map(a => newsCard(a)).join('');
+  frag.innerHTML = _buildFeedHtml(batch, state.feedOffset);
   while (frag.firstChild) list.insertBefore(frag.firstChild, sentinel);
   state.feedOffset += batch.length;
+}
+
+const AD_SLOT = 'XXXXXXXXXX'; // Replace with your AdSense ad slot ID
+function adCard() {
+  const id = 'ad-' + Math.random().toString(36).slice(2, 8);
+  setTimeout(() => {
+    try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch(e) {}
+  }, 100);
+  return `<div class="bg-white mb-2 px-4 py-3">
+    <p class="text-[9px] font-bold uppercase text-slate-400 tracking-widest mb-2">Advertisement</p>
+    <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-XXXXXXXXXXXXXXXX" data-ad-slot="${AD_SLOT}" data-ad-format="fluid" data-full-width-responsive="true" id="${id}"></ins>
+  </div>`;
 }
 
 function newsCard(raw) {
@@ -905,7 +922,7 @@ function newsCard(raw) {
       <img src="${img}" alt="${a.title}" class="w-full h-full object-cover" loading="lazy" onerror="this.src='${CATEGORY_IMAGES.default}'"/>
     </div>
     <div class="px-4 pt-3 pb-1">
-      <p class="text-slate-500 text-[13px] leading-relaxed line-clamp-2">${a.summary}</p>
+      <p class="text-slate-500 text-[13px] leading-relaxed">${a.summary}</p>
     </div>
     <div class="border-t border-slate-100 mt-2 flex">
       <button onclick="event.stopPropagation(); toggleSave('${a.id}')" class="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[12px] font-semibold ${isSaved ? 'text-[#4a90a4]' : 'text-slate-500'} hover:bg-slate-50 press">
@@ -954,11 +971,13 @@ function _sectionActions(a) {
 
 function _sectionSpiritual(a, jwLink) {
   const verse   = a.prophecy && a.prophecy.verse;
+  const verse2  = a.prophecy && a.prophecy.verse2;
   const insight = a.prophecy && a.prophecy.insight;
   if (!verse && !jwLink) return '';
   return `<section class="bg-amber-50 border border-amber-200 p-5 sm:p-6 rounded-3xl mb-6">
     <p class="sec-tag text-amber-600 mb-3">🙏 Spiritual Perspective</p>
-    ${verse ? `<blockquote class="text-lg sm:text-xl font-serif italic text-amber-900 leading-snug mb-2">"${verse}: ${a.prophecy.text || ''}"</blockquote>` : ''}
+    ${verse ? `<blockquote class="text-lg sm:text-xl font-serif italic text-amber-900 leading-snug mb-2"><span class="text-[10px] font-bold uppercase text-amber-500 not-italic">NWT</span> "${verse}: ${a.prophecy.text || ''}"</blockquote>` : ''}
+    ${verse2 ? `<blockquote class="text-base sm:text-lg font-serif italic text-amber-800 leading-snug mb-2 border-l-2 border-amber-300 pl-3"><span class="text-[10px] font-bold uppercase text-amber-500 not-italic">NIV</span> "${verse2}"</blockquote>` : ''}
     ${insight ? `<p class="text-sm text-amber-800 leading-relaxed mb-4 font-medium">${insight}</p>` : ''}
     <a href="${jwLink}" target="_blank" rel="noopener noreferrer"
       class="inline-flex items-center gap-2 bg-amber-100 hover:bg-amber-200 text-amber-900 px-4 py-2.5 rounded-full text-xs font-bold transition-colors">
@@ -979,6 +998,9 @@ function formatActions(text) {
 }
 
 function openArticle(id) {
+  // Save feed scroll position for back navigation
+  const feedList = document.getElementById('feed-list');
+  if (feedList) state._feedScrollTop = feedList.scrollTop;
   // Ping stats
   if (state.uid) {
     fetch(`${API_URL}/stats/ping`, {
@@ -1243,6 +1265,43 @@ function setPassengers(n) {
 }
 
 // ─── Category filter ──────────────────────────────────────────────────────────
+function _buildFeedHtml(articles, startOffset) {
+  return articles.map((a, i) => {
+    const pos = startOffset + i + 1; // 1-based position in full list
+    const card = newsCard(a);
+    // Insert ad after every 5th article
+    return (pos % 5 === 0) ? card + adCard() : card;
+  }).join('');
+}
+
+const CAT_ICONS = { Wars:'⚔️', Economy:'💹', Politics:'🏛️', Health:'🏥', Local:'📍', Crime:'🚨', Environment:'🌿' };
+const CAT_HIDDEN = new Set(['Jobs','Auctions']);
+
+function renderCategoryTabs() {
+  const bar = document.getElementById('cat-bar');
+  if (!bar) return;
+  const articles = getArticles();
+  const counts = {};
+  articles.forEach(a => { const c = a.category||''; if (c && !CAT_HIDDEN.has(c)) counts[c] = (counts[c]||0)+1; });
+  const existing = new Set([...bar.querySelectorAll('.cat-btn[data-cat]')].map(b => b.dataset.cat));
+  // Add new tabs
+  Object.keys(counts).forEach(cat => {
+    if (!existing.has(cat)) {
+      const btn = document.createElement('button');
+      btn.dataset.cat = cat;
+      btn.className = 'cat-btn flex-shrink-0 bg-white text-slate-600 px-4 py-1.5 rounded-full text-xs font-bold press';
+      btn.id = 'cat-' + cat;
+      btn.textContent = (CAT_ICONS[cat]||'📰') + ' ' + cat;
+      btn.onclick = () => filterCategory(cat);
+      bar.appendChild(btn);
+    }
+  });
+  // Remove tabs with 0 articles
+  [...bar.querySelectorAll('.cat-btn[data-cat]')].forEach(b => {
+    if (!counts[b.dataset.cat]) b.remove();
+  });
+}
+
 function filterCategory(cat) {
   state.currentCategory = cat;
   document.querySelectorAll('.cat-btn').forEach(b => {

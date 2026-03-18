@@ -101,8 +101,9 @@ class Article(Base):
     content_hash  = Column(String(64), unique=True, nullable=False)      # title+body hash — THE dedup key
 
     # ── Scriptural / prophecy fields ──────────────────────────────────────────
-    prophecy_verse   = Column(String(100))
-    prophecy_text    = Column(Text)
+    prophecy_verse   = Column(String(100))  # verse reference e.g. "Matthew 24:7"
+    prophecy_text    = Column(Text)          # NWT / JW New World Translation text
+    prophecy_verse2  = Column(Text)          # NIV (New International Version) text of same verse
     prophecy_insight = Column(Text)
 
     # ── Reader action fields ──────────────────────────────────────────────────
