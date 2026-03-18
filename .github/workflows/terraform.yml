@@ -72,23 +72,25 @@ jobs:
           terraform_wrapper: false   # needed so we can capture `terraform output`
 
       - name: Terraform Init (OBS remote state)
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.HW_ACCESS_KEY }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.HW_SECRET_KEY }}
         run: |
-          terraform init \
-            -backend-config="bucket=${{ env.OBS_BUCKET }}" \
-            -backend-config="key=${{ env.OBS_KEY }}" \
-            -backend-config="region=${{ env.OBS_REGION }}" \
-            -backend-config="endpoint=${{ env.OBS_ENDPOINT }}" \
-            -backend-config="access_key=${{ secrets.HW_ACCESS_KEY }}" \
-            -backend-config="secret_key=${{ secrets.HW_SECRET_KEY }}" \
-            -backend-config="skip_credentials_validation=true" \
-            -backend-config="skip_metadata_api_check=true" \
-            -backend-config="skip_region_validation=true" \
-            -backend-config="skip_requesting_account_id=true" \
-            -backend-config="skip_s3_checksum=true" \
-            -backend-config="force_path_style=true"
+          cat > /tmp/backend.hcl <<EOF
+          bucket                      = "${{ env.OBS_BUCKET }}"
+          key                         = "${{ env.OBS_KEY }}"
+          region                      = "${{ env.OBS_REGION }}"
+          access_key                  = "${{ secrets.HW_ACCESS_KEY }}"
+          secret_key                  = "${{ secrets.HW_SECRET_KEY }}"
+          skip_credentials_validation = true
+          skip_metadata_api_check     = true
+          skip_region_validation      = true
+          skip_requesting_account_id  = true
+          skip_s3_checksum            = true
+
+          endpoints = {
+            s3 = "${{ env.OBS_ENDPOINT }}"
+          }
+          EOF
+
+          terraform init -backend-config=/tmp/backend.hcl
 
       - name: Terraform Format Check
         run: terraform fmt -check -recursive
