@@ -33,7 +33,7 @@ Rate limits
   High-priority categories (Wars, Politics, Economy) are processed first.
 """
 
-import os, time, logging, json, re, hashlib
+import os, time, logging, json, re, hashlib, random
 import urllib.request, urllib.parse, urllib.error
 from datetime import datetime, timezone
 from typing import Optional
@@ -44,6 +44,10 @@ log = logging.getLogger("hungu-worker")
 GEMINI_API_KEY   = os.getenv("GEMINI_API_KEY", "")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
 GROQ_API_KEY     = os.getenv("GROQ_API_KEY", "")
+MISTRAL_API_KEY  = os.getenv("MISTRAL_API_KEY", "")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
+CEREBRAS_API_KEY = os.getenv("CEREBRAS_API_KEY", "")
+SAMBANOVA_API_KEY = os.getenv("SAMBANOVA_API_KEY", "")
 API_BASE_URL     = os.getenv("API_BASE_URL", "http://api:8000")
 WORKER_API_KEY   = os.getenv("WORKER_API_KEY", "")
 AI_DELAY         = 4                  # seconds between AI calls
@@ -114,9 +118,12 @@ def content_hash(title: str, body: str = "") -> str:
 # On 429 (rate limit), retry once after backoff, then fall through to next provider.
 
 def _parse_ai_json(text: str) -> Optional[dict]:
-    """Extract JSON from AI response text (handles ```json wrappers)."""
+    """Extract JSON from AI response text (handles ```json wrappers and control characters)."""
     m = re.search(r"```json\s*(.*?)\s*```", text, re.DOTALL)
-    return json.loads(m.group(1) if m else text)
+    raw = m.group(1) if m else text
+    # Remove control characters that break JSON parsing (except \t \n \r)
+    raw = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', raw)
+    return json.loads(raw)
 
 
 def _call_gemini_model(prompt: str, model: str, api_key: str) -> Optional[dict]:
@@ -146,6 +153,7 @@ def _call_openai_compatible(prompt: str, api_key: str, base_url: str, model: str
     req = urllib.request.Request(url, data=payload, method="POST", headers={
         "Content-Type": "application/json",
         "Authorization": f"Bearer {api_key}",
+        "User-Agent": "HUNGU-Worker/2.0",
     })
     with urllib.request.urlopen(req, timeout=60) as resp:
         data = json.loads(resp.read())
@@ -160,24 +168,37 @@ def _is_rate_limited(exc: Exception) -> bool:
 
 def call_ai(prompt: str) -> Optional[dict]:
     """
-    Try each AI provider in order. On 429, wait 60s and retry once,
-    then move to the next provider. Returns parsed JSON dict or None.
+    Randomly pick an AI provider, then fall back through the rest on failure.
+    Spreads load across providers to avoid burning one quota.
+    On 429 (rate limit), skip immediately to the next provider (no waiting).
     """
     providers = []
 
-    # 1. Gemini 2.0 Flash
+    # Gemini (separate group — uses different API format)
+    gemini_providers = []
     if GEMINI_API_KEY:
-        providers.append(("Gemini-2.0-Flash", lambda p: _call_gemini_model(p, "gemini-2.0-flash", GEMINI_API_KEY)))
-        # 2. Gemini 2.0 Flash Lite (same key, lighter model, separate quota)
-        providers.append(("Gemini-2.0-Flash-Lite", lambda p: _call_gemini_model(p, "gemini-2.0-flash-lite", GEMINI_API_KEY)))
+        gemini_providers.append(("Gemini-2.0-Flash", lambda p: _call_gemini_model(p, "gemini-2.0-flash", GEMINI_API_KEY)))
+        gemini_providers.append(("Gemini-2.0-Flash-Lite", lambda p: _call_gemini_model(p, "gemini-2.0-flash-lite", GEMINI_API_KEY)))
 
-    # 3. Groq (generous free tier, fast)
+    # OpenAI-compatible providers
+    oai_providers = []
     if GROQ_API_KEY:
-        providers.append(("Groq-Llama3.3", lambda p: _call_openai_compatible(p, GROQ_API_KEY, "https://api.groq.com/openai/v1", "llama-3.3-70b-versatile")))
-
-    # 4. DeepSeek (pay-as-you-go after free credits)
+        oai_providers.append(("Groq-Llama3.3", lambda p: _call_openai_compatible(p, GROQ_API_KEY, "https://api.groq.com/openai/v1", "llama-3.3-70b-versatile")))
+    if MISTRAL_API_KEY:
+        oai_providers.append(("Mistral", lambda p: _call_openai_compatible(p, MISTRAL_API_KEY, "https://api.mistral.ai/v1", "mistral-small-latest")))
+    if OPENROUTER_API_KEY:
+        oai_providers.append(("OpenRouter-Llama3.3", lambda p: _call_openai_compatible(p, OPENROUTER_API_KEY, "https://openrouter.ai/api/v1", "meta-llama/llama-3.3-70b-instruct:free")))
+    if CEREBRAS_API_KEY:
+        oai_providers.append(("Cerebras-Qwen3", lambda p: _call_openai_compatible(p, CEREBRAS_API_KEY, "https://api.cerebras.ai/v1", "qwen-3-235b-a22b-instruct-2507")))
+    if SAMBANOVA_API_KEY:
+        oai_providers.append(("SambaNova-Llama3.3", lambda p: _call_openai_compatible(p, SAMBANOVA_API_KEY, "https://api.sambanova.ai/v1", "Meta-Llama-3.3-70B-Instruct")))
     if DEEPSEEK_API_KEY:
-        providers.append(("DeepSeek", lambda p: _call_openai_compatible(p, DEEPSEEK_API_KEY, "https://api.deepseek.com", "deepseek-chat")))
+        oai_providers.append(("DeepSeek", lambda p: _call_openai_compatible(p, DEEPSEEK_API_KEY, "https://api.deepseek.com", "deepseek-chat")))
+
+    # Shuffle each group, then combine: Gemini first (free, highest quality), then shuffled others
+    random.shuffle(gemini_providers)
+    random.shuffle(oai_providers)
+    providers = gemini_providers + oai_providers
 
     if not providers:
         log.warning("No AI API keys configured — skipping enrichment")
@@ -191,15 +212,7 @@ def call_ai(prompt: str) -> Optional[dict]:
                 return result
         except Exception as exc:
             if _is_rate_limited(exc):
-                log.warning("%s rate-limited (429) — waiting 60s then retrying...", name)
-                time.sleep(60)
-                try:
-                    result = call_fn(prompt)
-                    if result:
-                        log.info("AI success via %s (retry)", name)
-                        return result
-                except Exception as retry_exc:
-                    log.warning("%s retry failed: %s — trying next provider", name, retry_exc)
+                log.warning("%s rate-limited (429) — skipping to next provider", name)
             else:
                 log.warning("%s error: %s — trying next provider", name, exc)
 
@@ -242,6 +255,11 @@ Title: {title}
 Article text:
 {raw_text[:3000]}
 """
+
+def _jw_link_for(category: str, jw_topic: str) -> str:
+    """Return a JW.org search URL for end-times Bible prophecy relevant to the topic."""
+    query = urllib.parse.quote_plus(f"end times bible prophecies {jw_topic}".strip())
+    return f"https://www.jw.org/en/search/?q={query}"
 
 # ─── Deduplication check ──────────────────────────────────────────────────────
 
@@ -675,14 +693,14 @@ def enrich_old_articles() -> None:
         time.sleep(AI_DELAY)
         if not ai:
             continue
-        jw_topic = ai.get("jw_topic", "end times prophecy")
-        jw_link  = f"https://www.jw.org/en/search/?q={urllib.parse.quote_plus(jw_topic)}"
+        jw_link = _jw_link_for(art["category"], ai.get("jw_topic", ""))
         payload  = json.dumps({
             "impact":           ai.get("impact", ""),
             "actions_now":      ai.get("actions_now", ""),
             "actions_later":    ai.get("actions_later", ""),
             "prophecy_verse":   ai.get("verse", ""),
             "prophecy_text":    ai.get("verse_text", ""),
+            "prophecy_verse2":  ai.get("verse_niv", ""),
             "prophecy_insight": ai.get("insight", ""),
             "jw_link":          jw_link,
         }).encode()
@@ -780,8 +798,7 @@ def process_and_submit(raw_articles: list) -> list:
                     "urgent":        ai.get("urgent", False),
                 })
             else:
-                jw_topic = ai.get("jw_topic", "end times prophecy")
-                jw_link  = f"https://www.jw.org/en/search/?q={urllib.parse.quote_plus(jw_topic)}"
+                jw_link = _jw_link_for(raw.get("category", ""), ai.get("jw_topic", ""))
                 raw.update({
                     "summary":      ai.get("summary",      raw.get("raw_text", "")[:120]),
                     "impact":       ai.get("impact",       "Impact analysis pending."),
@@ -789,6 +806,7 @@ def process_and_submit(raw_articles: list) -> list:
                     "actions_later": ai.get("actions_later", ""),
                     "prophecy":    {"verse":   ai.get("verse", ""),
                                     "text":    ai.get("verse_text", ""),
+                                    "verse2":  ai.get("verse_niv", ""),
                                     "insight": ai.get("insight", "")},
                     "jw_link":      jw_link,
                     "urgent":      ai.get("urgent", False),

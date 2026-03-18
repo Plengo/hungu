@@ -146,6 +146,7 @@ class ArticleEnrichIn(BaseModel):
     actions_later:    Optional[str] = None
     prophecy_verse:   Optional[str] = None
     prophecy_text:    Optional[str] = None
+    prophecy_verse2:  Optional[str] = None
     prophecy_insight: Optional[str] = None
     jw_link:          Optional[str] = None
 
@@ -178,6 +179,7 @@ def _to_out(a: ArticleModel) -> dict:
         "prophecy": {
             "verse":   a.prophecy_verse   or "",
             "text":    a.prophecy_text    or "",
+            "verse2":  a.prophecy_verse2  or "",
             "insight": a.prophecy_insight or "",
         },
         "urgent":       bool(a.urgent),
@@ -276,6 +278,8 @@ async def needs_enrichment(
                   ArticleModel.impact == "Impact analysis pending.",
                   ArticleModel.prophecy_verse == None,
                   ArticleModel.prophecy_verse == "",
+                  ArticleModel.prophecy_verse2 == None,
+                  ArticleModel.prophecy_verse2 == "",
                   ArticleModel.prophecy_insight == None,
                   ArticleModel.prophecy_insight == "",
               )
@@ -308,6 +312,7 @@ async def enrich_article(
     if body.actions_later    is not None: a.actions_later     = body.actions_later
     if body.prophecy_verse   is not None: a.prophecy_verse    = body.prophecy_verse
     if body.prophecy_text    is not None: a.prophecy_text     = body.prophecy_text
+    if body.prophecy_verse2  is not None: a.prophecy_verse2   = body.prophecy_verse2
     if body.prophecy_insight is not None: a.prophecy_insight  = body.prophecy_insight
     if body.jw_link          is not None: a.jw_link           = body.jw_link
     a.updated_at = datetime.datetime.now(datetime.timezone.utc)
