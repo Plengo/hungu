@@ -168,16 +168,16 @@ def call_ai(prompt: str) -> Optional[dict]:
     # 1. Gemini 2.0 Flash
     if GEMINI_API_KEY:
         providers.append(("Gemini-2.0-Flash", lambda p: _call_gemini_model(p, "gemini-2.0-flash", GEMINI_API_KEY)))
-        # 2. Gemini 1.5 Flash (same key, separate rate limit)
-        providers.append(("Gemini-1.5-Flash", lambda p: _call_gemini_model(p, "gemini-1.5-flash", GEMINI_API_KEY)))
+        # 2. Gemini 2.0 Flash Lite (same key, lighter model, separate quota)
+        providers.append(("Gemini-2.0-Flash-Lite", lambda p: _call_gemini_model(p, "gemini-2.0-flash-lite", GEMINI_API_KEY)))
 
-    # 3. DeepSeek
-    if DEEPSEEK_API_KEY:
-        providers.append(("DeepSeek", lambda p: _call_openai_compatible(p, DEEPSEEK_API_KEY, "https://api.deepseek.com/v1", "deepseek-chat")))
-
-    # 4. Groq
+    # 3. Groq (generous free tier, fast)
     if GROQ_API_KEY:
         providers.append(("Groq-Llama3.3", lambda p: _call_openai_compatible(p, GROQ_API_KEY, "https://api.groq.com/openai/v1", "llama-3.3-70b-versatile")))
+
+    # 4. DeepSeek (pay-as-you-go after free credits)
+    if DEEPSEEK_API_KEY:
+        providers.append(("DeepSeek", lambda p: _call_openai_compatible(p, DEEPSEEK_API_KEY, "https://api.deepseek.com", "deepseek-chat")))
 
     if not providers:
         log.warning("No AI API keys configured — skipping enrichment")
