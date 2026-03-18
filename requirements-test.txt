@@ -1,0 +1,15 @@
+# HUNGU test dependencies
+# Install with: pip install -r requirements-test.txt
+
+fastapi
+uvicorn[standard]
+sqlalchemy
+psycopg2-binary
+python-multipart
+python-jose[cryptography]
+passlib[bcrypt]
+
+# Testing
+pytest>=7.0
+pytest-cov
+httpx        # required by FastAPI TestClient

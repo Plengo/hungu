@@ -1,0 +1,21 @@
+# Environment secrets — NEVER commit these
+.env
+.env.*
+!.env.example
+
+# Terraform secrets and state
+services/iaas/terraform.tfvars
+services/iaas/*.tfstate
+services/iaas/*.tfstate.backup
+services/iaas/.terraform/
+services/iaas/.terraform.lock.hcl
+services/iaas/crash.log
+services/iaas/override.tf
+services/iaas/override.tf.json
+# Terraform backend config (contains OBS credentials — never commit)
+services/iaas/backend.hcl
+
+# OS / editor
+.DS_Store
+.idea/
+*.swp
