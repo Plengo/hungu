@@ -1,19 +1,17 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 # HUNGU — Huawei Cloud Free Tier Infrastructure
 # Region:  af-south-1 (Johannesburg, South Africa)
-# Stack:   ECS (Docker host) + RDS PostgreSQL (free) + EIP + VPC/Subnets/SGs
+# Stack:   ECS (Docker host) + EIP + VPC/Subnet/SG
 #
 # FREE TIER ELIGIBILITY (verify at https://www.huaweicloud.com/intl/en-us/free):
 #   ECS   s6.small.1          1 vCPU · 1 GB RAM  — 12 months free
-#   RDS   rds.pg.n1.small.2   1 vCPU · 2 GB RAM  — 6 months free
 #   ECS System Disk  40 GB SSD (GPSSD)            — included
-#   RDS Volume       40 GB ULTRAHIGH SSD           — free-tier threshold
 #   EIP   5 Mbps pay-by-traffic                   — ~free while bound to ECS
 #   VPC / Subnets / Security Groups               — always free
 #
-# NOTE: Free tier specs change — check the Huawei Cloud Free Package page
-#       before deploying. No local PostgreSQL container is used; RDS handles
-#       all data storage, freeing up RAM on the ECS for the app containers.
+# NOTE: PostgreSQL runs inside Docker alongside the app containers.
+#       Data is persisted to a named Docker volume on the ECS disk.
+#       Free tier specs change — check the Huawei Cloud Free Package page.
 #
 # USAGE:
 #   1. cp terraform.tfvars.example terraform.tfvars   (fill in all values)
@@ -57,9 +55,16 @@ variable "ssh_public_key" {
 }
 
 variable "db_password" {
-  description = "PostgreSQL master password for RDS. Min 8 chars, must include uppercase, lowercase, digit, and special char."
+  description = "PostgreSQL password for the Docker database container."
   type        = string
   sensitive   = true
+}
+
+variable "admin_secret" {
+  description = "Admin dashboard secret key (X-Admin-Key header)"
+  type        = string
+  sensitive   = true
+  default     = ""
 }
 
 variable "db_username" {
@@ -130,14 +135,6 @@ resource "huaweicloud_vpc_subnet" "app_subnet" {
   vpc_id     = huaweicloud_vpc.hungu_vpc.id
 }
 
-# DB subnet — RDS lives here (no public internet access)
-resource "huaweicloud_vpc_subnet" "db_subnet" {
-  name       = "hungu-db-subnet"
-  cidr       = "10.0.2.0/24"
-  gateway_ip = "10.0.2.1"
-  vpc_id     = huaweicloud_vpc.hungu_vpc.id
-}
-
 # ─── 2. Security Groups ───────────────────────────────────────────────────────
 
 # App security group: HTTP(S) + SSH from internet
@@ -177,22 +174,6 @@ resource "huaweicloud_networking_secgroup_rule" "allow_ssh" {
   security_group_id = huaweicloud_networking_secgroup.app_sg.id
 }
 
-# DB security group: PostgreSQL ONLY from the app subnet — no public access
-resource "huaweicloud_networking_secgroup" "db_sg" {
-  name        = "hungu-db-sg"
-  description = "HUNGU RDS — PostgreSQL access from app subnet only"
-}
-
-resource "huaweicloud_networking_secgroup_rule" "allow_postgres" {
-  direction         = "ingress"
-  ethertype         = "IPv4"
-  protocol          = "tcp"
-  port_range_min    = 5432
-  port_range_max    = 5432
-  remote_ip_prefix  = "10.0.1.0/24" # only the app subnet — never the internet
-  security_group_id = huaweicloud_networking_secgroup.db_sg.id
-}
-
 # ─── 3. SSH Key Pair ──────────────────────────────────────────────────────────
 
 resource "huaweicloud_compute_keypair" "hungu_keypair" {
@@ -200,78 +181,15 @@ resource "huaweicloud_compute_keypair" "hungu_keypair" {
   public_key = var.ssh_public_key
 }
 
-# ─── 4. RDS PostgreSQL — Free Tier ───────────────────────────────────────────
-#
-# Replaces the local PostgreSQL Docker container.
-# RDS manages backups, patching, and HA automatically.
-# The ECS app containers connect via the private RDS endpoint — no DB port
-# is ever exposed to the internet.
-#
-# Free-tier flavor: rds.pg.n1.small.2 (1 vCPU · 2GB · af-south-1)
-# Check the current eligible flavor at:
-#   https://www.huaweicloud.com/intl/en-us/free/rds.html
-
-resource "huaweicloud_rds_instance" "hungu_db" {
-  name              = "hungu-postgres"
-  flavor            = "rds.pg.n1.small.2" # Free-tier eligible — verify on Huawei Free page
-  availability_zone = [var.availability_zone]
-  vpc_id            = huaweicloud_vpc.hungu_vpc.id
-  subnet_id         = huaweicloud_vpc_subnet.db_subnet.id
-  security_group_id = huaweicloud_networking_secgroup.db_sg.id
-
-  db {
-    type     = "PostgreSQL"
-    version  = "15"
-    password = var.db_password
-    port     = 5432
-  }
-
-  volume {
-    type = "ULTRAHIGH" # SSD — required for RDS free tier in most regions
-    size = 40          # 40 GB — stays within free tier storage quota
-  }
-
-  # Automated daily backups — free storage up to the instance disk size
-  backup_strategy {
-    start_time = "02:00-03:00" # off-peak for South Africa (UTC+2)
-    keep_days  = 3
-  }
-
-  # tags for cost tracking
-  tags = {
-    project = "hungu"
-    env     = "production"
-  }
-}
-
-# Create the application database inside the RDS instance
-resource "huaweicloud_rds_database" "hungu_appdb" {
-  instance_id   = huaweicloud_rds_instance.hungu_db.id
-  name          = "hungu"
-  character_set = "UTF8"
-}
-
-# Create an app-level DB user (separate from the master user)
-resource "huaweicloud_rds_pg_database_privilege" "app_user_priv" {
-  instance_id = huaweicloud_rds_instance.hungu_db.id
-  db_name     = huaweicloud_rds_database.hungu_appdb.name
-  users {
-    name        = var.db_username
-    readonly    = false
-    schema_name = "public"
-  }
-  depends_on = [huaweicloud_rds_database.hungu_appdb]
-}
-
-# ─── 5. ECS Instance — Free Tier ─────────────────────────────────────────────
+# ─── 4. ECS Instance — Free Tier ─────────────────────────────────────────────
 #
 # s6.small.1 = 1 vCPU · 1 GB RAM (free tier 12 months in af-south-1)
-# Runs three lightweight Docker containers: web (nginx) + api (FastAPI) + worker
-# No PostgreSQL container = ~300 MB RAM saved for the app services.
+# Runs four Docker containers: web (nginx) + api (FastAPI) + worker + db (PostgreSQL)
+# PostgreSQL data is persisted in a Docker named volume on the system disk.
 
 locals {
-  # Build the DB connection string using the RDS internal endpoint
-  db_url = "postgresql://${var.db_username}:${var.db_password}@${huaweicloud_rds_instance.hungu_db.private_ips[0]}:5432/hungu"
+  # DB connection string uses Docker internal networking
+  db_url = "postgresql://${var.db_username}:${var.db_password}@db:5432/hungu"
 
   # cloud-init user_data script
   startup_script = <<-SCRIPT
@@ -306,8 +224,10 @@ locals {
     GEMINI_API_KEY=${var.gemini_api_key}
     DB_URL=${local.db_url}
     DB_PASSWORD=${var.db_password}
+    DB_USERNAME=${var.db_username}
     JWT_SECRET=${var.jwt_secret}
     WORKER_API_KEY=${var.worker_api_key}
+    ADMIN_SECRET=${var.admin_secret}
     DOMAIN=${var.domain_name}
     SCRAPE_INTERVAL_SECS=3600
     API_BASE_URL=http://api:8000
@@ -327,15 +247,17 @@ locals {
           - DB_URL=${local.db_url}
           - JWT_SECRET=${var.jwt_secret}
           - GEMINI_API_KEY=${var.gemini_api_key}
+          - WORKER_API_KEY=${var.worker_api_key}
+          - ADMIN_SECRET=${var.admin_secret}
       worker:
         restart: always
         environment:
           - GEMINI_API_KEY=${var.gemini_api_key}
           - API_BASE_URL=http://api:8000
+          - WORKER_API_KEY=${var.worker_api_key}
           - SCRAPE_INTERVAL_SECS=3600
       db:
-        deploy:
-          replicas: 0   # disable local DB — using RDS instead
+        restart: always
     COMPOSE
 
     echo "==> HUNGU: Writing deploy helper..."
@@ -344,7 +266,6 @@ locals {
     set -euo pipefail
     cd /opt/hungu
     echo "Pulling latest images and starting HUNGU..."
-    docker compose -f docker-compose.yml -f docker-compose.prod.yml pull || true
     docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
     echo "HUNGU is running! Check: docker compose ps"
     DEPLOY
@@ -372,19 +293,13 @@ resource "huaweicloud_compute_instance" "hungu_server" {
 
   user_data = base64encode(local.startup_script)
 
-  # RDS must exist before the ECS boots so the DB URL is valid
-  depends_on = [
-    huaweicloud_rds_instance.hungu_db,
-    huaweicloud_rds_database.hungu_appdb,
-  ]
-
   tags = {
     project = "hungu"
     env     = "production"
   }
 }
 
-# ─── 6. Elastic IP (EIP) ──────────────────────────────────────────────────────
+# ─── 5. Elastic IP (EIP) ──────────────────────────────────────────────────────
 
 resource "huaweicloud_vpc_eip" "hungu_eip" {
   publicip {
@@ -407,7 +322,7 @@ resource "huaweicloud_compute_eip_associate" "hungu_eip_bind" {
   instance_id = huaweicloud_compute_instance.hungu_server.id
 }
 
-# ─── 7. Deployment — handled by GitHub Actions ───────────────────────────────
+# ─── 6. Deployment — handled by GitHub Actions ───────────────────────────────
 # App code deployment (git pull + docker compose up) is done by the
 # GitHub Actions workflow in .github/workflows/terraform.yml.
 # Terraform only manages infrastructure — not application code.
@@ -422,23 +337,6 @@ output "public_ip" {
 output "ssh_command" {
   value       = "ssh ubuntu@${huaweicloud_vpc_eip.hungu_eip.address}"
   description = "SSH command to connect to your HUNGU server."
-}
-
-output "rds_private_endpoint" {
-  value       = huaweicloud_rds_instance.hungu_db.private_ips[0]
-  description = "RDS private IP (reachable only from the app subnet)."
-  sensitive   = false
-}
-
-output "rds_port" {
-  value       = 5432
-  description = "PostgreSQL port."
-}
-
-output "db_connection_string" {
-  value       = local.db_url
-  description = "Full PostgreSQL connection string for the API .env file."
-  sensitive   = true  # contains password — use: terraform output -raw db_connection_string
 }
 
 output "dns_instruction" {
@@ -460,25 +358,9 @@ output "deploy_instructions" {
       Name: @   Type: A   Value: ${huaweicloud_vpc_eip.hungu_eip.address}
       Name: www Type: A   Value: ${huaweicloud_vpc_eip.hungu_eip.address}
 
-    ── GitHub Actions (first-time setup) ─────────────
-    Add these secrets in:
-    GitHub → Settings → Secrets and variables → Actions
-
-      HW_ACCESS_KEY   = <Huawei Cloud AK>
-      HW_SECRET_KEY   = <Huawei Cloud SK>
-      DB_PASSWORD     = <your RDS password>
-      DB_USERNAME     = hungu
-      GEMINI_API_KEY  = <your Gemini key>
-      JWT_SECRET      = <openssl rand -hex 32>
-      SSH_PUBLIC_KEY  = <cat ~/.ssh/id_rsa.pub>
-      SSH_PRIVATE_KEY = <cat ~/.ssh/id_rsa>
-
     ── After first terraform apply ───────────────────
     The .env is already written on the server by cloud-init.
     Push to main → GitHub Actions deploys the app automatically.
-
-    ── Get DB connection string locally ──────────────
-    terraform output -raw db_connection_string
     ════════════════════════════════════════════════════
   INSTRUCTIONS
   description = "Post-deployment steps."
