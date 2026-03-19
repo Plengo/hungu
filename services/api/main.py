@@ -284,9 +284,8 @@ async def get_feed(
     )
     if category and category.lower() != "all":
         q = q.filter(ArticleModel.category.ilike(category))
-    articles = q.order_by(ArticleModel.created_at.desc()).limit(limit * 5).all()
-    articles.sort(key=lambda a: TIER_PRIORITY.get(a.location_tier, 5))
-    return [_to_out(a) for a in articles[:limit]]
+    articles = q.order_by(ArticleModel.created_at.desc()).limit(limit).all()
+    return [_to_out(a) for a in articles]
 
 @app.get("/article/{article_id}")
 async def get_article(article_id: str, db: Session = Depends(get_db)):
