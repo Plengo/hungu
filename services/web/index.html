@@ -524,7 +524,7 @@
       </div>
 
       <!-- Auth -->
-      <div class="bg-white rounded-3xl p-5 shadow-sm">
+      <div id="profile-signin-card" class="bg-white rounded-3xl p-5 shadow-sm">
         <h2 class="text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-3">Sign In / Sync</h2>
         <div class="space-y-2">
           <button onclick="signIn('google')" id="btn-google-signin" class="w-full flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 font-bold text-sm text-slate-700 press hover:bg-slate-100">
@@ -1308,6 +1308,9 @@ function renderProfile() {
   document.getElementById('prof-country').value  = state.user.country;
   document.getElementById('byok-provider').value = state.byok.provider;
   document.getElementById('byok-key').value      = '';
+  // Hide sign-in card if already logged in
+  const signinCard = document.getElementById('profile-signin-card');
+  if (signinCard) signinCard.classList.toggle('hidden', !!state.token);
   // BYOK state
   if (state.byok.key) {
     document.getElementById('byok-input-state').classList.add('hidden');
