@@ -779,6 +779,7 @@ function timeAgo(iso) {
 }
 
 function _stripHtml(s) { return (s || '').replace(/<[^>]*>/g, ' ').replace(/&[a-z]+;/gi, ' ').replace(/\s{2,}/g, ' ').trim(); }
+function _fmtCount(n) { n = Number(n) || 0; if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M'; if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k'; return String(n); }
 
 function norm(raw) {
   // Normalise both API (snake_case) and static (camelCase) article formats
@@ -798,6 +799,9 @@ function norm(raw) {
     prophecy:     { verse: (raw.prophecy||{}).verse||'', text: (raw.prophecy||{}).text||'', verse2: (raw.prophecy||{}).verse2||'', insight: (raw.prophecy||{}).insight||'' },
     jwLink:       raw.jw_link       || raw.jwLink       || '',
     urgent:       raw.urgent        || false,
+    likes:        raw.likes         || 0,
+    dislikes:     raw.dislikes      || 0,
+    views:        raw.views         || 0,
     url:          raw.url           || '',
     date:         raw.date          || timeAgo(raw.published_at || raw.created_at),
     publishedAt:  raw.published_at  || raw.created_at || '',
@@ -1145,13 +1149,22 @@ function newsCard(raw) {
     <div class="px-4 pt-3 pb-1">
       <p class="text-slate-500 text-[13px] leading-relaxed">${a.summary}</p>
     </div>
-    <div class="border-t border-slate-100 mt-2 flex">
+    <div class="flex items-center gap-3 px-4 pt-1 pb-1 text-[11px] text-slate-400">
+      <span>👁 ${_fmtCount(a.views)}</span>
+      <span>👍 <span id="card-likes-${a.id}">${_fmtCount(a.likes)}</span></span>
+      <span>👎 <span id="card-dislikes-${a.id}">${_fmtCount(a.dislikes)}</span></span>
+    </div>
+    <div class="border-t border-slate-100 mt-1 flex">
+      <button onclick="event.stopPropagation(); reactArticle('${a.id}','like')" id="like-${a.id}" class="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[12px] font-semibold text-slate-500 hover:bg-slate-50 press">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 9V5a3 3 0 00-6 0v1H6a2 2 0 00-2 2v10a2 2 0 002 2h8.5a2.5 2.5 0 002.5-2.5V11a2 2 0 00-2-2h-1z"/></svg>
+        Like
+      </button>
+      <button onclick="event.stopPropagation(); reactArticle('${a.id}','dislike')" id="dislike-${a.id}" class="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[12px] font-semibold text-slate-500 hover:bg-slate-50 press">
+        <svg class="w-4 h-4 rotate-180" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 9V5a3 3 0 00-6 0v1H6a2 2 0 00-2 2v10a2 2 0 002 2h8.5a2.5 2.5 0 002.5-2.5V11a2 2 0 00-2-2h-1z"/></svg>
+        Dislike
+      </button>
       <button onclick="event.stopPropagation(); toggleSave('${a.id}')" class="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[12px] font-semibold ${isSaved ? 'text-[#4a90a4]' : 'text-slate-500'} hover:bg-slate-50 press">
         ${bkSvg(isSaved)} ${isSaved ? 'Saved' : 'Save'}
-      </button>
-      <button onclick="event.stopPropagation(); speakText(_buildTtsText(norm(getArticles().find(x=>String(x.id)==='${a.id}'))), '${a.id}')" class="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[12px] font-semibold text-slate-500 hover:bg-slate-50 press">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072M12 6v12m3.536-13.536a9 9 0 010 12.728M6.464 8.464a5 5 0 000 7.072"/></svg>
-        Listen
       </button>
       <button onclick="event.stopPropagation(); shareArticle('${a.id}')" class="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[12px] font-semibold text-slate-500 hover:bg-slate-50 press">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
@@ -1233,6 +1246,8 @@ function openArticle(id) {
   const raw = getArticles().find(x => String(x.id) === String(id));
   if (!raw) return;
   const a = norm(raw);
+  // Record view
+  fetch(`${API_URL}/articles/${a.id}/view`, { method: 'POST' }).catch(() => {});
   if (!state.read.includes(a.id)) { state.read.push(a.id); saveState(); updateStats(); }
   const isSaved = state.saved.includes(a.id) || state.saved.includes(Number(a.id));
   const img = articleImg(a);
@@ -1266,9 +1281,23 @@ function openArticle(id) {
           ? `<a href="${a.url}" target="_blank" rel="noopener noreferrer" class="text-[10px] text-[#4a90a4] font-bold hover:underline">${a.source}</a>`
           : `<span class="text-[10px] text-slate-600 font-semibold">${a.source}</span>`
         }<span class="text-[10px] text-slate-400"> · ${a.date}</span>
+        <span class="text-[10px] text-slate-400 ml-auto">👁 ${_fmtCount(a.views)}</span>
       </div>
       <!-- Title -->
-      <h1 class="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 leading-tight mb-7">${a.title}</h1>
+      <h1 class="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 leading-tight mb-4">${a.title}</h1>
+
+      <!-- Like / Dislike bar -->
+      <div class="flex items-center gap-3 mb-6" id="detail-reactions">
+        <button onclick="reactArticle('${a.id}','like')" class="flex items-center gap-1.5 px-4 py-2 rounded-full bg-slate-100 hover:bg-green-50 text-sm font-semibold text-slate-600 press">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 9V5a3 3 0 00-6 0v1H6a2 2 0 00-2 2v10a2 2 0 002 2h8.5a2.5 2.5 0 002.5-2.5V11a2 2 0 00-2-2h-1z"/></svg>
+          <span id="detail-likes">${_fmtCount(a.likes)}</span>
+        </button>
+        <button onclick="reactArticle('${a.id}','dislike')" class="flex items-center gap-1.5 px-4 py-2 rounded-full bg-slate-100 hover:bg-red-50 text-sm font-semibold text-slate-600 press">
+          <svg class="w-4 h-4 rotate-180" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 9V5a3 3 0 00-6 0v1H6a2 2 0 00-2 2v10a2 2 0 002 2h8.5a2.5 2.5 0 002.5-2.5V11a2 2 0 00-2-2h-1z"/></svg>
+          <span id="detail-dislikes">${_fmtCount(a.dislikes)}</span>
+        </button>
+        <span class="text-xs text-slate-400 ml-auto">👁 ${_fmtCount(a.views)} views</span>
+      </div>
 
       <!-- SECTION 1 — Summary -->
       <section class="mb-6">
@@ -1340,6 +1369,27 @@ function shareArticle(id) {
   if (navigator.share) {
     navigator.share({ title: a.title, text: a.summary || a.title, url: shareUrl }).catch(() => {});
   }
+}
+
+async function reactArticle(id, reaction) {
+  try {
+    const res = await fetch(`${API_URL}/articles/${id}/react?reaction=${reaction}`, { method: 'POST' });
+    if (!res.ok) return;
+    const data = await res.json();
+    // Update in-memory article data
+    const raw = getArticles().find(x => String(x.id) === String(id));
+    if (raw) { raw.likes = data.likes; raw.dislikes = data.dislikes; }
+    // Update detail view if visible
+    const dl = document.getElementById('detail-likes');
+    const dd = document.getElementById('detail-dislikes');
+    if (dl) dl.textContent = _fmtCount(data.likes);
+    if (dd) dd.textContent = _fmtCount(data.dislikes);
+    // Update card counts in feed
+    const cl = document.getElementById('card-likes-' + id);
+    const cd = document.getElementById('card-dislikes-' + id);
+    if (cl) cl.textContent = _fmtCount(data.likes);
+    if (cd) cd.textContent = _fmtCount(data.dislikes);
+  } catch { /* ignore */ }
 }
 
 function renderSaved() {

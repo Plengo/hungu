@@ -187,6 +187,9 @@ def _to_out(a: ArticleModel) -> dict:
             "insight": a.prophecy_insight or "",
         },
         "urgent":       bool(a.urgent),
+        "likes":        a.likes    or 0,
+        "dislikes":     a.dislikes or 0,
+        "views":        a.views    or 0,
         "status":       a.status or "active",
         "actions_now":   a.actions_now   or "",
         "actions_later": a.actions_later or "",
@@ -298,6 +301,25 @@ async def get_article(article_id: str, db: Session = Depends(get_db)):
     if not a:
         raise HTTPException(status_code=404, detail="Article not found")
     return _to_out(a)
+
+@app.post("/articles/{article_id}/view", status_code=204)
+async def record_view(article_id: str, db: Session = Depends(get_db)):
+    a = db.query(ArticleModel).filter(ArticleModel.id == article_id).first()
+    if a:
+        a.views = (a.views or 0) + 1
+        db.commit()
+
+@app.post("/articles/{article_id}/react")
+async def react_article(article_id: str, reaction: str = Query(..., regex="^(like|dislike)$"), db: Session = Depends(get_db)):
+    a = db.query(ArticleModel).filter(ArticleModel.id == article_id).first()
+    if not a:
+        raise HTTPException(status_code=404, detail="Article not found")
+    if reaction == "like":
+        a.likes = (a.likes or 0) + 1
+    else:
+        a.dislikes = (a.dislikes or 0) + 1
+    db.commit()
+    return {"likes": a.likes, "dislikes": a.dislikes}
 
 # ─── Worker submission ────────────────────────────────────────────────────────
 
