@@ -82,6 +82,7 @@ SCHEDULE = [
     ("sa_extra_news",     "scrape_sa_extra",          60, True),   #  1 min  — fast (The SA + eNCA + MyBroadband + EWN + IOL + SABC)
     ("sa_x_accounts",     "scrape_sa_x",              60, True),   #  1 min  — fast (Nitter/X — govt + media)
     ("community_news",    "scrape_community",      300, True),   #  5 min  — fast (GroundUp + community journalism)
+    ("suburb_community",  "scrape_suburb_community", 1800, True), # 30 min  — suburb-specific FB/local pages per active suburb
     ("gazette_gpw",       "scrape_gazette",         3600, True),   # 60 min  — govt gazette
     ("policy_parliament", "scrape_parliament",      3600, True),   # 60 min  — parliament
     ("jobs_dpsa",         "scrape_jobs",           86400, True),   # 24 hours — DPSA vacancies
@@ -603,7 +604,220 @@ def scrape_community() -> list:
 
     return results
 
-# ── X / Nitter (verified SA accounts) ─────────────────────────────────────────
+# ── Suburb-aware community scraper ────────────────────────────────────────────
+
+# Known SA suburb/neighbourhood community pages — slug mappings.
+# Add more as they are discovered. Slug = Facebook page name used in mbasic URL.
+_SUBURB_FB_PAGES: dict[str, list[str]] = {
+    "acornhoek":       ["AcornhoekNews", "acornhoeknews"],
+    "pheli":           ["PheliNews", "soshanguvenews"],
+    "lotus gardens":   ["LotusgardensNews", "lotusgardenspretoria"],
+    "pretoria west":   ["PretoriaWestNews", "pretoriawestcommunity"],
+    "atteridgeville":  ["AtteridgevilleNews"],
+    "mamelodi":        ["MamalodiCommunityNews", "mamalodinews"],
+    "soweto":          ["SowetoNews", "mysowetonews"],
+    "alexandra":       ["AlexandraCommunity", "alexnews"],
+    "mitchells plain": ["MitchellsPlainNews", "mitchellsplaincommunity"],
+    "khayelitsha":     ["KhayelitshaNews", "khayelitshacommunity"],
+    "sandton":         ["SandtonCommunityNews"],
+    "menlyn":          ["MenlynNews"],
+    "centurion":       ["CenturionCommunityNews", "centurioncommunity"],
+    "midrand":         ["MidrandCommunity"],
+    "roodepoort":      ["RoodepoortNews"],
+    "krugersdorp":     ["KrugersdorpNews"],
+    "vanderbijlpark":  ["VdbnewsVanderbijlpark"],
+    "vereeniging":     ["VereenigingNews"],
+    "polokwane":       ["PolokwaneNews", "limpopocommunity"],
+    "nelspruit":       ["NelspruitNews"],
+    "mbombela":        ["MbombelaCommunity"],
+    "witbank":         ["WithankCommunity", "eMalahleniNews"],
+    "emalahleni":      ["eMalahleniNews"],
+    "rustenburg":      ["RustenburgCommunityNews"],
+    "klerksdorp":      ["KlerksdorpNews"],
+    "bloemfontein":    ["BloemfonteinNews"],
+    "east london":     ["EastLondonCommunity"],
+    "george":          ["GeorgeCommunityNews"],
+    "paarl":           ["PaarlCommunity"],
+    "stellenbosch":    ["StellenboschCommunity"],
+    "tembisa":         ["TembisaCommunityNews", "tembisamagazine"],
+    "thembisa":        ["TembisaCommunityNews"],
+    "diepsloot":       ["DiepslootCommunityNews"],
+    "ivory park":      ["IvoryParkCommunity"],
+    "orange farm":     ["OrangeFarmCommunity"],
+    "vosloorus":       ["VosloorusCommunity"],
+    "springs":         ["SpringsCommunityNews"],
+    "benoni":          ["BenoniCommunity"],
+    "boksburg":        ["BoksburgNews"],
+    "brakpan":         ["BrakpanCommunity"],
+    "germiston":       ["GermistonCommunity"],
+    "kempton park":    ["KemptonParkCommunity"],
+    "edenvale":        ["EdenvaleCommunity"],
+    "bedfordview":     ["BedfordviewCommunity"],
+}
+
+def _scrape_mbasic_fb_page(slug: str, suburb: str) -> list:
+    """
+    Scrape a public Facebook page's posts via mbasic.facebook.com.
+    mbasic is the stripped-down mobile version — accessible without login for public pages.
+    Returns list of article dicts.
+    """
+    url = f"https://mbasic.facebook.com/{slug}"
+    body = http_get(url, timeout=15)
+    if not body:
+        return []
+
+    results = []
+    # Extract post titles/links from mbasic HTML
+    # mbasic wraps posts in <div id="m_story_permalink_..."> or <article> tags
+    # We look for <strong> inside story containers or <h3>
+    seen = set()
+
+    # Find story containers
+    story_blocks = re.findall(
+        r'<div[^>]*data-ft[^>]*>(.*?)</div>\s*</div>',
+        body, re.DOTALL
+    )
+    # Fallback: find any <h3> or <strong> with meaningful text
+    titles = re.findall(r'<(?:h3|strong)[^>]*>\s*([^<]{20,200})\s*</(?:h3|strong)>', body)
+    # Also grab text near hrefs that look like post permalinks
+    link_texts = re.findall(
+        r'href="[^"]*permalink[^"]*"[^>]*>\s*([^<]{20,200})\s*</a>',
+        body
+    )
+
+    for raw in (titles + link_texts):
+        text = re.sub(r'\s+', ' ', raw).strip()
+        if len(text) < 20 or text in seen:
+            continue
+        seen.add(text)
+        results.append({
+            "title":         text,
+            "summary":       text,
+            "full_context":  text,
+            "source":        f"Facebook / {slug}",
+            "url":           url,
+            "image":         "",
+            "category":      "Community",
+            "location_tier": "Suburb",
+            "location_name": suburb,
+        })
+        if len(results) >= 5:
+            break
+
+    if results:
+        log.info("FB mbasic %s → %d posts for suburb '%s'", slug, len(results), suburb)
+    return results
+
+
+def _search_suburb_news_ddg(suburb: str) -> list:
+    """
+    DuckDuckGo HTML search for '{suburb} news site:facebook.com OR -site:facebook.com community news'.
+    Extracts headline snippets from search results as community story stubs.
+    Returns up to 5 article dicts.
+    """
+    query = f"{suburb} community news South Africa"
+    url = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(query)}"
+    body = http_get(url, timeout=12)
+    if not body:
+        return []
+
+    results = []
+    seen = set()
+    # DDG HTML: result titles in <a class="result__a"> tags
+    matches = re.findall(
+        r'<a[^>]+class="result__a"[^>]*>\s*(.*?)\s*</a>',
+        body, re.DOTALL
+    )
+    snippets = re.findall(
+        r'<a[^>]+class="result__snippet"[^>]*>\s*(.*?)\s*</a>',
+        body, re.DOTALL
+    )
+    urls = re.findall(
+        r'<a[^>]+class="result__a"[^>]+href="([^"]+)"',
+        body
+    )
+
+    for i, title_html in enumerate(matches[:5]):
+        title = re.sub(r'<[^>]+>', '', title_html).strip()
+        title = re.sub(r'\s+', ' ', title)
+        if not title or len(title) < 15 or title in seen:
+            continue
+        seen.add(title)
+        snippet = re.sub(r'<[^>]+>', '', snippets[i] if i < len(snippets) else '').strip()
+        link = urls[i] if i < len(urls) else ''
+        if link.startswith('//duckduckgo.com') or 'duckduckgo' in link:
+            link = ''
+        results.append({
+            "title":         f"{suburb}: {title}",
+            "summary":       snippet or title,
+            "full_context":  snippet or title,
+            "source":        f"Community Report / {suburb}",
+            "url":           link,
+            "image":         "",
+            "category":      "Community",
+            "location_tier": "Suburb",
+            "location_name": suburb,
+        })
+
+    return results
+
+
+def scrape_suburb_community() -> list:
+    """
+    Suburb-aware community scraper.
+    1. Fetches the list of active user suburbs from the API.
+    2. For each suburb, tries known Facebook page slugs (via mbasic) first.
+    3. Falls back to a DuckDuckGo search for community news about that suburb.
+    Articles are tagged with location_tier='Suburb' and location_name=<suburb>.
+    """
+    # Fetch active suburbs from API
+    try:
+        req = urllib.request.Request(
+            f"{API_BASE_URL}/worker/active-suburbs",
+            headers=_worker_headers()
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read())
+        suburbs = data.get("suburbs", [])
+    except Exception as exc:
+        log.warning("active-suburbs fetch failed: %s", exc)
+        suburbs = []
+
+    if not suburbs:
+        log.info("No active suburbs registered yet — skipping suburb community scrape")
+        return []
+
+    log.info("Scraping community news for %d active suburb(s): %s", len(suburbs), suburbs[:10])
+    results = []
+
+    for suburb in suburbs[:20]:  # cap at 20 suburbs per cycle
+        suburb_lower = suburb.lower().strip()
+        found = False
+
+        # Try known FB page slugs first
+        for known_suburb, slugs in _SUBURB_FB_PAGES.items():
+            if known_suburb in suburb_lower or suburb_lower in known_suburb:
+                for slug in slugs:
+                    items = _scrape_mbasic_fb_page(slug, suburb)
+                    if items:
+                        results += items
+                        found = True
+                        break
+                if found:
+                    break
+
+        # Fall back: DDG search for community news
+        if not found:
+            items = _search_suburb_news_ddg(suburb)
+            results += items
+            if items:
+                log.info("DDG fallback for '%s' → %d results", suburb, len(items))
+
+        time.sleep(1)  # polite delay between suburbs
+
+    return results
+
+
 
 # Verified South African official/public interest accounts worth monitoring.
 # Nitter provides RSS feeds of Twitter/X timelines without needing API keys.
@@ -1032,6 +1246,7 @@ _SCRAPER_FNS = {
     "scrape_sa_local":     scrape_sa_local,
     "scrape_sa_extra":     scrape_sa_extra,
     "scrape_community":    scrape_community,
+    "scrape_suburb_community": scrape_suburb_community,
     "scrape_sa_x":         scrape_sa_x,
     "scrape_gazette":      scrape_gazette,
     "scrape_parliament":   scrape_parliament,
