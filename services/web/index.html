@@ -778,6 +778,8 @@ function timeAgo(iso) {
   } catch { return 'recently'; }
 }
 
+function _stripHtml(s) { return (s || '').replace(/<[^>]*>/g, ' ').replace(/&[a-z]+;/gi, ' ').replace(/\s{2,}/g, ' ').trim(); }
+
 function norm(raw) {
   // Normalise both API (snake_case) and static (camelCase) article formats
   return {
@@ -786,11 +788,11 @@ function norm(raw) {
     category:     raw.category      || '',
     locationTier: raw.location_tier || raw.locationTier || '',
     locationName: raw.location_name || raw.locationName || '',
-    title:        raw.title         || '',
-    summary:      raw.summary       || '',
-    fullContext:  raw.full_context  || raw.fullContext  || '',
+    title:        _stripHtml(raw.title         || ''),
+    summary:      _stripHtml(raw.summary       || ''),
+    fullContext:  _stripHtml(raw.full_context  || raw.fullContext  || ''),
     image:        raw.image         || '',
-    impact:       raw.impact        || '',
+    impact:       _stripHtml(raw.impact        || ''),
     actionsNow:   raw.actions_now   || raw.actionsNow   || '',
     actionsLater: raw.actions_later || raw.actionsLater || '',
     prophecy:     { verse: (raw.prophecy||{}).verse||'', text: (raw.prophecy||{}).text||'', verse2: (raw.prophecy||{}).verse2||'', insight: (raw.prophecy||{}).insight||'' },

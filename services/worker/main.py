@@ -349,9 +349,18 @@ def _clean_title(text: str) -> str:
         text = text[:197].rsplit(' ', 1)[0] + '…'
     return text
 
+def _strip_html(text: str) -> str:
+    """Remove all HTML tags and decode common entities."""
+    if not text:
+        return text
+    text = re.sub(r'<[^>]+>', ' ', text)
+    text = text.replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>').replace('&quot;', '"').replace('&#39;', "'").replace('&nbsp;', ' ')
+    return re.sub(r'\s{2,}', ' ', text).strip()
+
 def _clean_rawtext(text: str) -> str:
     if not text:
         return text
+    text = _strip_html(text)
     text = _READMORE_RE.sub('', text)
     lines = [l for l in text.splitlines() if not re.fullmatch(r'\s*https?://\S+\s*', l)]
     return re.sub(r'\n{3,}', '\n\n', '\n'.join(lines)).strip()
