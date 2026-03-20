@@ -918,7 +918,7 @@ function renderFeed() {
   }
   const first = items.slice(0, state.feedPageSize);
   state.feedOffset = first.length;
-  list.innerHTML = _buildFeedHtml(first, 0) + '<div id="feed-sentinel" class="h-4"></div>' + _feedFooterHtml();
+  list.innerHTML = _promoCardHtml() + _buildFeedHtml(first, 0) + '<div id="feed-sentinel" class="h-4"></div>' + _feedFooterHtml();
   setTimeout(initFeedObserver, 150);
 }
 
@@ -1414,6 +1414,44 @@ function setPassengers(n) {
   for (let i = 1; i <= 4; i++) {
     const b = document.getElementById('p' + i);
     if (b) b.classList.toggle('active', i === n);
+  }
+}
+
+function _promoCardHtml() {
+  return `<div class="mx-4 mb-4 rounded-3xl overflow-hidden shadow-lg" style="background:linear-gradient(135deg,#0d1b2a 0%,#1a3a4a 60%,#4a90a4 100%)">
+    <div class="px-5 pt-5 pb-4">
+      <p class="text-[10px] font-extrabold uppercase tracking-widest text-[#4a90a4] mb-1">🇿🇦 South Africa's #1 Hyper-Local News App</p>
+      <h2 class="text-white text-xl font-black leading-tight mb-1">Know what's happening<br>in <span class="text-[#87ceeb]">your street.</span></h2>
+      <p class="text-white/60 text-xs mb-4">AI-powered news filtered to your suburb, city &amp; province — with instant action steps.</p>
+      <button onclick="shareApp()" class="w-full bg-white text-[#0d1b2a] font-extrabold text-sm py-3 rounded-2xl press flex items-center justify-center gap-2 shadow">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M4 12v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+        Share HUNGU with friends
+      </button>
+    </div>
+    <div class="flex border-t border-white/10">
+      <div class="flex-1 px-4 py-3 text-center border-r border-white/10">
+        <p class="text-white font-extrabold text-lg">Free</p>
+        <p class="text-white/50 text-[10px] uppercase font-bold">Always</p>
+      </div>
+      <div class="flex-1 px-4 py-3 text-center border-r border-white/10">
+        <p class="text-white font-extrabold text-lg">AI</p>
+        <p class="text-white/50 text-[10px] uppercase font-bold">Powered</p>
+      </div>
+      <div class="flex-1 px-4 py-3 text-center">
+        <p class="text-white font-extrabold text-lg">Local</p>
+        <p class="text-white/50 text-[10px] uppercase font-bold">First</p>
+      </div>
+    </div>
+  </div>`;
+}
+
+function shareApp() {
+  const url = 'https://hungu.co.za';
+  const text = '🇿🇦 HUNGU — AI-powered hyper-local South African news. Know what\'s happening in your street. Free & instant.';
+  if (navigator.share) {
+    navigator.share({ title: 'HUNGU', text, url }).catch(() => {});
+  } else {
+    navigator.clipboard && navigator.clipboard.writeText(url).then(() => showToast('Link copied!'));
   }
 }
 
