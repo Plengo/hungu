@@ -144,6 +144,7 @@ class TrackRequest(BaseModel):
     category: str
 
 class ArticleEnrichIn(BaseModel):
+    summary:          Optional[str] = None
     impact:           Optional[str] = None
     actions_now:      Optional[str] = None
     actions_later:    Optional[str] = None
@@ -312,7 +313,7 @@ async def article_exists(content_hash_val: str, request: Request,
 @app.get("/articles/needs-enrichment")
 async def needs_enrichment(
     request: Request,
-    limit: int = Query(5, ge=1, le=20),
+    limit: int = Query(20, ge=1, le=50),
     db: Session = Depends(get_db),
 ):
     """Return articles missing AI-generated fields so the worker can enrich them."""
@@ -329,12 +330,8 @@ async def needs_enrichment(
                   ArticleModel.impact == None,
                   ArticleModel.impact == "",
                   ArticleModel.impact == "Impact analysis pending.",
-                  ArticleModel.prophecy_verse == None,
-                  ArticleModel.prophecy_verse == "",
-                  ArticleModel.prophecy_verse2 == None,
-                  ArticleModel.prophecy_verse2 == "",
-                  ArticleModel.prophecy_insight == None,
-                  ArticleModel.prophecy_insight == "",
+                  ArticleModel.summary == None,
+                  ArticleModel.summary == "",
               )
           )
           .order_by(ArticleModel.created_at.desc())
@@ -360,6 +357,7 @@ async def enrich_article(
     a = db.query(ArticleModel).filter(ArticleModel.id == article_id).first()
     if not a:
         raise HTTPException(status_code=404, detail="Article not found")
+    if body.summary          is not None: a.summary           = body.summary
     if body.impact           is not None: a.impact            = body.impact
     if body.actions_now      is not None: a.actions_now       = body.actions_now
     if body.actions_later    is not None: a.actions_later     = body.actions_later
