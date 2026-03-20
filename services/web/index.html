@@ -625,6 +625,40 @@
         <h2 class="text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-4">Articles by Category</h2>
         <div id="admin-categories" class="space-y-2"><div class="bg-slate-50 rounded-2xl h-28 animate-pulse"></div></div>
       </div>
+      <!-- Post Breaking News -->
+      <div class="bg-white rounded-3xl p-5 shadow-sm border-2 border-red-100">
+        <h2 class="text-xs font-extrabold text-red-400 uppercase tracking-widest mb-3">🔴 Post Breaking News</h2>
+        <div class="space-y-3">
+          <input id="bn-title" type="text" placeholder="Headline *" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-semibold outline-none focus:border-red-400"/>
+          <textarea id="bn-summary" placeholder="Summary *" rows="3" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-red-400 resize-none"></textarea>
+          <input id="bn-url" type="url" placeholder="Source URL (optional)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-red-400"/>
+          <input id="bn-source" type="text" placeholder="Source name e.g. AP News" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-red-400"/>
+          <input id="bn-image" type="url" placeholder="Image URL (optional)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-red-400"/>
+          <div class="flex gap-2">
+            <select id="bn-category" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-red-400">
+              <option value="General">General</option>
+              <option value="Politics">Politics</option>
+              <option value="Crime">Crime</option>
+              <option value="Economy">Economy</option>
+              <option value="Health">Health</option>
+              <option value="Entertainment">Entertainment</option>
+              <option value="Environment">Environment</option>
+              <option value="Wars">Wars</option>
+              <option value="Local">Local</option>
+            </select>
+            <select id="bn-tier" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-red-400">
+              <option value="national">National</option>
+              <option value="global">Global</option>
+              <option value="provincial">Provincial</option>
+              <option value="local">Local</option>
+            </select>
+          </div>
+          <button onclick="postBreakingNews()" class="w-full bg-red-600 text-white py-3 rounded-xl font-extrabold text-sm press flex items-center justify-center gap-2">
+            🔴 Publish as Breaking News
+          </button>
+          <p id="bn-status" class="text-xs text-center font-semibold hidden"></p>
+        </div>
+      </div>
       <!-- Recent articles -->
       <div class="bg-white rounded-3xl p-5 shadow-sm">
         <h2 class="text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-3">Latest Submissions</h2>
@@ -1740,6 +1774,44 @@ async function adminToggleUrgent(id, btn) {
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
+// ─── Post Breaking News (admin) ───────────────────────────────────────────────
+async function postBreakingNews() {
+  const title   = document.getElementById('bn-title').value.trim();
+  const summary = document.getElementById('bn-summary').value.trim();
+  const url     = document.getElementById('bn-url').value.trim();
+  const source  = document.getElementById('bn-source').value.trim() || 'HUNGU';
+  const image   = document.getElementById('bn-image').value.trim();
+  const category = document.getElementById('bn-category').value;
+  const tier    = document.getElementById('bn-tier').value;
+  const key     = document.getElementById('admin-key-input')?.value || '';
+  const status  = document.getElementById('bn-status');
+
+  if (!title || !summary) { status.textContent = '⚠️ Headline and summary are required.'; status.className = 'text-xs text-center font-semibold text-red-500'; status.classList.remove('hidden'); return; }
+
+  status.textContent = 'Publishing…'; status.className = 'text-xs text-center font-semibold text-slate-400'; status.classList.remove('hidden');
+
+  try {
+    // 1. Post article with worker key
+    const hash = 'manual-' + Date.now();
+    const body = { title, summary, source, category, location_tier: tier, location_name: tier === 'global' ? 'Global' : 'South Africa', url: url || 'https://hungu.co.za', image: image || '', impact: '', content_hash: hash };
+    const r1 = await fetch('/api/articles', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Worker-Key': 'd7ed24f7724910db6fc669b4d54f4397' }, body: JSON.stringify(body) });
+    const d1 = await r1.json();
+    if (!r1.ok && d1.status !== 'duplicate') throw new Error(JSON.stringify(d1));
+    const articleId = d1.id;
+
+    // 2. Mark urgent via admin
+    const r2 = await fetch(`/api/admin/articles/${articleId}/urgent`, { method: 'PATCH', headers: { 'X-Admin-Key': key } });
+    if (!r2.ok) throw new Error(await r2.text());
+
+    status.textContent = '✅ Published and marked as BREAKING!'; status.className = 'text-xs text-center font-semibold text-green-600';
+    ['bn-title','bn-summary','bn-url','bn-source','bn-image'].forEach(id => document.getElementById(id).value = '');
+    // Refresh ticker
+    await loadBreakingTicker();
+  } catch(e) {
+    status.textContent = '❌ Error: ' + e.message; status.className = 'text-xs text-center font-semibold text-red-500';
+  }
+}
+
 // ─── Breaking News Ticker ─────────────────────────────────────────────────────
 async function loadBreakingTicker() {
   try {
