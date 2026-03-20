@@ -2025,22 +2025,25 @@ function _renderStoriesStrip() {
 
   row.innerHTML = _stories.map((a, idx) => {
     const img = a.image || CATEGORY_IMAGES[a.category] || CATEGORY_IMAGES.default;
-    const label = (a.title || '').slice(0, 26) + (a.title && a.title.length > 26 ? '…' : '');
+    const label = (a.title || '').slice(0, 36) + (a.title && a.title.length > 36 ? '…' : '');
     const isLocal = suburb && (a.location_name || '').toLowerCase().includes(suburb.toLowerCase());
     const unverified = _isUnverified(a);
     const ring = unverified
-      ? 'background:linear-gradient(135deg,#d97706,#fbbf24)'   /* amber = community/unverified */
+      ? 'border-color:rgb(217,119,6)'        /* amber = community/unverified */
       : isLocal
-        ? 'background:linear-gradient(135deg,#4a90a4,#87ceeb)' /* blue = your area, verified */
-        : 'background:linear-gradient(135deg,#cbd5e1,#94a3b8)'; /* grey = general */
-    return `<button onclick="openStory(${idx})" class="flex-shrink-0 flex flex-col items-center gap-1.5 press" style="width:68px">
-      <div class="relative rounded-full p-[2.5px]" style="width:62px;height:62px;${ring}">
-        <div class="w-full h-full rounded-full overflow-hidden bg-slate-100">
-          <img src="${img}" class="w-full h-full object-cover" loading="lazy" onerror="this.src='${CATEGORY_IMAGES.default}'"/>
+        ? 'border-color:#4a90a4'              /* blue = your area, verified */
+        : 'border-color:#cbd5e1';             /* grey = general */
+    const src = a.source || '';
+    return `<button onclick="openStory(${idx})" class="flex-shrink-0 press" style="width:130px">
+      <div class="relative rounded-2xl overflow-hidden border-[3px] shadow-sm" style="width:130px;height:170px;${ring}">
+        <img src="${img}" class="w-full h-full object-cover" loading="lazy" onerror="this.src='${CATEGORY_IMAGES.default}'"/>
+        <div class="absolute inset-0" style="background:linear-gradient(0deg,rgba(0,0,0,0.75) 0%,rgba(0,0,0,0.1) 50%,rgba(0,0,0,0.3) 100%)"></div>
+        ${unverified ? `<span class="absolute top-1.5 right-1.5 bg-amber-500 text-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center leading-none">⚠</span>` : ''}
+        <div class="absolute bottom-0 left-0 right-0 p-2">
+          <p class="text-[9px] font-bold text-white/70 truncate">${src}</p>
+          <p class="text-[11px] font-bold text-white leading-tight" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${label}</p>
         </div>
-        ${unverified ? `<span class="absolute -bottom-0.5 -right-0.5 bg-amber-500 text-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center leading-none border-2 border-white">⚠</span>` : ''}
       </div>
-      <span class="text-[10px] font-semibold text-slate-600 text-center leading-tight" style="width:64px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${label}</span>
     </button>`;
   }).join('');
   strip.classList.remove('hidden');
