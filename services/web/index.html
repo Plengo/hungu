@@ -334,6 +334,17 @@
       </div>
     </div>
 
+    <!-- Community Stories strip -->
+    <div id="stories-strip" class="hidden px-4 sm:px-8 pt-4 max-w-screen-lg mx-auto w-full">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest">📖 Community Stories</span>
+        <span id="stories-subtext" class="text-[11px] text-[#4a90a4] font-bold truncate max-w-[60%]"></span>
+      </div>
+      <div id="stories-row" class="flex gap-3 overflow-x-auto scroll-hide pb-1">
+        <!-- story bubbles injected by JS -->
+      </div>
+    </div>
+
     <!-- Category filter -->
     <div id="cat-bar" class="px-4 sm:px-8 pt-4 flex gap-2 overflow-x-auto scroll-hide pb-1 max-w-screen-lg mx-auto w-full justify-center">
       <button onclick="filterCategory('all')" id="cat-all" class="cat-btn flex-shrink-0 bg-[#4a90a4] text-white px-4 py-1.5 rounded-full text-xs font-bold press">All</button>
@@ -372,6 +383,40 @@
     </nav>
   </div><!-- /view-feed -->
 
+
+  <!-- ── STORY VIEWER ──────────────────────────────────────────────────────── -->
+  <div id="story-viewer" class="fixed inset-0 z-[300] hidden flex flex-col bg-black" style="touch-action:pan-x">
+    <!-- Progress bars -->
+    <div id="story-progress" class="flex gap-1 px-3 pt-10 pb-2 z-10"></div>
+    <!-- Header -->
+    <div class="flex items-center gap-3 px-4 pb-3 z-10">
+      <div class="w-9 h-9 rounded-full bg-slate-700 overflow-hidden flex-shrink-0">
+        <img id="story-avatar-img" src="" class="w-full h-full object-cover" onerror="this.style.display='none'"/>
+      </div>
+      <div class="flex-1 min-w-0">
+        <p id="story-source" class="text-white text-sm font-extrabold truncate"></p>
+        <p id="story-time" class="text-white/60 text-[11px]"></p>
+      </div>
+      <button onclick="closeStory()" class="w-10 h-10 flex items-center justify-center text-white/80 text-3xl leading-none">×</button>
+    </div>
+    <!-- Image fill -->
+    <div class="flex-1 relative overflow-hidden">
+      <img id="story-bg" src="" class="absolute inset-0 w-full h-full object-cover" onerror="this.style.opacity='0'"/>
+      <div class="absolute inset-0" style="background:linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, transparent 40%, rgba(0,0,0,0.75) 100%)"></div>
+      <!-- Tap prev / next (left 35% = prev, right 65% = next) -->
+      <div class="absolute inset-y-0 left-0 z-10" style="width:35%" onclick="_storyPrev()"></div>
+      <div class="absolute inset-y-0 right-0 z-10" style="width:65%" onclick="_storyNext()"></div>
+      <!-- Your area badge -->
+      <div id="story-local-badge" class="hidden absolute top-4 left-4 z-20 bg-[#4a90a4] text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wide">📍 Your Area</div>
+      <!-- Bottom text -->
+      <div class="absolute bottom-0 left-0 right-0 p-5 z-20">
+        <p class="text-white/70 text-[11px] font-bold uppercase tracking-widest mb-1" id="story-cat"></p>
+        <p id="story-title" class="text-white text-xl font-extrabold leading-tight mb-2 drop-shadow-lg"></p>
+        <p id="story-summary" class="text-white/80 text-sm leading-relaxed line-clamp-3"></p>
+        <button onclick="_openStoryArticle()" class="mt-4 bg-white/20 backdrop-blur-sm text-white text-xs font-bold px-5 py-2.5 rounded-full border border-white/30">Read full story →</button>
+      </div>
+    </div>
+  </div>
 
   <!-- ── DISCLAIMER MODAL ──────────────────────────────────────────────────── -->
   <div id="modal-disclaimer" class="fixed inset-0 z-[200] hidden flex items-end justify-center" onclick="if(event.target===this)hideDisclaimer()">
@@ -628,6 +673,34 @@
         <h2 class="text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-4">Articles by Category</h2>
         <div id="admin-categories" class="space-y-2"><div class="bg-slate-50 rounded-2xl h-28 animate-pulse"></div></div>
       </div>
+      <!-- Post Community Story -->
+      <div class="bg-white rounded-3xl p-5 shadow-sm border-2 border-[#87ceeb]/50">
+        <h2 class="text-xs font-extrabold text-[#4a90a4] uppercase tracking-widest mb-1">📖 Post Community Story</h2>
+        <p class="text-[11px] text-slate-400 mb-3">For reports spotted on Facebook/WhatsApp community groups.</p>
+        <div class="space-y-3">
+          <input id="cs-title" type="text" placeholder="Headline *" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-semibold outline-none focus:border-[#4a90a4]"/>
+          <textarea id="cs-summary" placeholder="What happened? Include all details reported. *" rows="3" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#4a90a4] resize-none"></textarea>
+          <input id="cs-source" type="text" placeholder="Source e.g. 'Menlyn Residents FB Group'" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#4a90a4]"/>
+          <div class="flex gap-2">
+            <input id="cs-suburb" type="text" placeholder="Suburb e.g. Menlyn" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#4a90a4]"/>
+            <input id="cs-city" type="text" placeholder="City e.g. Pretoria" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#4a90a4]"/>
+          </div>
+          <input id="cs-image" type="url" placeholder="Image URL (optional)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#4a90a4]"/>
+          <select id="cs-category" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#4a90a4]">
+            <option value="Community">Community</option>
+            <option value="Crime">Crime</option>
+            <option value="Local">Local</option>
+            <option value="Health">Health</option>
+            <option value="Economy">Economy</option>
+            <option value="Entertainment">Entertainment</option>
+          </select>
+          <button onclick="postCommunityStory()" class="w-full bg-[#4a90a4] text-white py-3 rounded-xl font-extrabold text-sm press flex items-center justify-center gap-2">
+            📖 Publish as Community Story
+          </button>
+          <p id="cs-status" class="text-xs text-center font-semibold hidden"></p>
+        </div>
+      </div>
+
       <!-- Post Breaking News -->
       <div class="bg-white rounded-3xl p-5 shadow-sm border-2 border-red-100">
         <h2 class="text-xs font-extrabold text-red-400 uppercase tracking-widest mb-3">🔴 Post Breaking News</h2>
@@ -974,6 +1047,7 @@ function renderFeed() {
   if (badge) badge.textContent = state.user.suburb || 'My Area';
   if (pulse) pulse.textContent = 'Hyper-Local: ' + (state.user.suburb || 'My Area');
 
+  loadStories();
   renderCategoryTabs();
   let items = getArticles();
   if (state.currentCategory !== 'all') {
@@ -1050,7 +1124,7 @@ function newsCard(raw) {
   const a = norm(raw);
   const isSaved = state.saved.includes(a.id) || state.saved.includes(Number(a.id));
   const img = articleImg(a);
-  const cat = { Wars:'⚔️', Economy:'💹', Politics:'🏛️', Health:'🏥', Jobs:'💼', Local:'📍', Crime:'🚨', Auctions:'🏠' };
+  const cat = { Wars:'⚔️', Economy:'💹', Politics:'🏛️', Health:'🏥', Jobs:'💼', Local:'📍', Crime:'🚨', Auctions:'🏠', Community:'🏘️', Entertainment:'🎭', Environment:'🌿' };
   const srcTxt  = a.source || 'HUNGU News';
   const srcHtml = `<span class="font-bold text-slate-800 text-sm">${srcTxt}</span>`;
   const bkSvg = (filled) => `<svg class="w-4 h-4" fill="${filled ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>`;
@@ -1831,6 +1905,198 @@ async function postBreakingNews() {
   }
 }
 
+// ─── Community Stories ───────────────────────────────────────────────────────
+let _stories = [];
+let _storyIdx = 0;
+let _storyTimer = null;
+
+async function loadStories() {
+  const suburb = (state.user.suburb || '').toLowerCase();
+  const city   = (state.user.city   || '').toLowerCase();
+
+  // Try Community category first
+  let articles = [];
+  try {
+    const r = await fetch(`${API_URL}/feed?category=Community&limit=30`);
+    if (r.ok) articles = await r.json();
+  } catch(e) {}
+
+  // Fall back: use interesting general articles (non-breaking, non-job, non-auction)
+  if (articles.length < 3) {
+    const fallback = (state.articles.length ? state.articles : [])
+      .filter(a => !a.urgent && !['Auctions','Jobs'].includes(a.category));
+    articles = [...articles, ...fallback];
+  }
+  if (!articles.length) return;
+
+  // Sort: suburb first → city → SA → global
+  articles.sort((a, b) => {
+    const sc = x => {
+      const ln = (x.location_name || '').toLowerCase();
+      if (suburb && (ln === suburb || ln.includes(suburb))) return 0;
+      if (city   && (ln === city   || ln.includes(city)))   return 1;
+      if ((x.location_tier || '') !== 'Global')              return 2;
+      return 3;
+    };
+    return sc(a) - sc(b);
+  });
+
+  _stories = articles.slice(0, 20);
+  _renderStoriesStrip();
+}
+
+function _renderStoriesStrip() {
+  const strip = document.getElementById('stories-strip');
+  const row   = document.getElementById('stories-row');
+  const sub   = document.getElementById('stories-subtext');
+  if (!strip || !row || !_stories.length) return;
+
+  const suburb = state.user.suburb || '';
+  const hasLocal = suburb && _stories.some(a =>
+    (a.location_name || '').toLowerCase().includes(suburb.toLowerCase()));
+  if (sub) sub.textContent = hasLocal ? `📍 ${suburb}` : 'SA & World';
+
+  row.innerHTML = _stories.map((a, idx) => {
+    const img = a.image || CATEGORY_IMAGES[a.category] || CATEGORY_IMAGES.default;
+    const label = (a.title || '').slice(0, 26) + (a.title && a.title.length > 26 ? '…' : '');
+    const isLocal = suburb && (a.location_name || '').toLowerCase().includes(suburb.toLowerCase());
+    const ring = isLocal
+      ? 'background:linear-gradient(135deg,#4a90a4,#87ceeb)'
+      : 'background:linear-gradient(135deg,#cbd5e1,#94a3b8)';
+    return `<button onclick="openStory(${idx})" class="flex-shrink-0 flex flex-col items-center gap-1.5 press" style="width:68px">
+      <div class="rounded-full p-[2.5px]" style="width:62px;height:62px;${ring}">
+        <div class="w-full h-full rounded-full overflow-hidden bg-slate-100">
+          <img src="${img}" class="w-full h-full object-cover" loading="lazy" onerror="this.src='${CATEGORY_IMAGES.default}'"/>
+        </div>
+      </div>
+      <span class="text-[10px] font-semibold text-slate-600 text-center leading-tight" style="width:64px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${label}</span>
+    </button>`;
+  }).join('');
+  strip.classList.remove('hidden');
+}
+
+function openStory(idx) {
+  _storyIdx = Math.max(0, Math.min(idx, _stories.length - 1));
+  document.getElementById('story-viewer').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+  _renderCurrentStory();
+  _storyStartProgress();
+  _storyAddSwipe(document.getElementById('story-viewer'));
+}
+
+function closeStory() {
+  clearTimeout(_storyTimer);
+  document.getElementById('story-viewer').classList.add('hidden');
+  document.body.style.overflow = '';
+}
+
+function _renderCurrentStory() {
+  const a = _stories[_storyIdx];
+  if (!a) { closeStory(); return; }
+  const n = norm(a);
+  const img = a.image || CATEGORY_IMAGES[a.category] || CATEGORY_IMAGES.default;
+  document.getElementById('story-bg').src          = img;
+  document.getElementById('story-avatar-img').src  = img;
+  document.getElementById('story-source').textContent  = a.source || 'Community';
+  document.getElementById('story-time').textContent    = n.date;
+  document.getElementById('story-cat').textContent     = (a.category || '') + (a.location_name ? ' · ' + a.location_name : '');
+  document.getElementById('story-title').textContent   = a.title || '';
+  document.getElementById('story-summary').textContent = a.summary || '';
+  const badge = document.getElementById('story-local-badge');
+  const isLocal = (state.user.suburb || '') &&
+    (a.location_name || '').toLowerCase().includes((state.user.suburb || '').toLowerCase());
+  if (badge) badge.classList.toggle('hidden', !isLocal);
+  // Rebuild progress bars
+  const prog = document.getElementById('story-progress');
+  if (prog) {
+    prog.innerHTML = _stories.map((_, i) =>
+      `<div class="flex-1 rounded-full overflow-hidden" style="height:3px;background:rgba(255,255,255,0.3)">
+        <div id="sbar-${i}" style="height:100%;width:${i < _storyIdx ? '100' : 0}%;background:white;border-radius:999px;transition:none"></div>
+      </div>`
+    ).join('');
+  }
+}
+
+function _storyStartProgress() {
+  clearTimeout(_storyTimer);
+  const bar = document.getElementById(`sbar-${_storyIdx}`);
+  if (!bar) return;
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    bar.style.transition = 'width 6s linear';
+    bar.style.width = '100%';
+  }));
+  _storyTimer = setTimeout(_storyNext, 6200);
+}
+
+function _storyNext() {
+  clearTimeout(_storyTimer);
+  if (_storyIdx < _stories.length - 1) { _storyIdx++; _renderCurrentStory(); _storyStartProgress(); }
+  else closeStory();
+}
+function _storyPrev() {
+  clearTimeout(_storyTimer);
+  if (_storyIdx > 0) { _storyIdx--; _renderCurrentStory(); _storyStartProgress(); }
+}
+function _openStoryArticle() {
+  const a = _stories[_storyIdx];
+  closeStory();
+  if (a) openArticle(String(a.id));
+}
+
+let _storyTouchX = 0;
+function _storyAddSwipe(el) {
+  el.ontouchstart = e => { _storyTouchX = e.touches[0].clientX; };
+  el.ontouchend   = e => {
+    const dx = e.changedTouches[0].clientX - _storyTouchX;
+    if (Math.abs(dx) > 45) { dx < 0 ? _storyNext() : _storyPrev(); }
+  };
+}
+
+async function postCommunityStory() {
+  const title    = document.getElementById('cs-title').value.trim();
+  const summary  = document.getElementById('cs-summary').value.trim();
+  const source   = document.getElementById('cs-source').value.trim() || 'Community Report';
+  const suburb   = document.getElementById('cs-suburb').value.trim();
+  const city     = document.getElementById('cs-city').value.trim();
+  const image    = document.getElementById('cs-image').value.trim();
+  const category = document.getElementById('cs-category').value;
+  const statusEl = document.getElementById('cs-status');
+
+  if (!title || !summary) {
+    statusEl.textContent = '⚠️ Headline and summary required.';
+    statusEl.className = 'text-xs text-center font-semibold text-red-500';
+    statusEl.classList.remove('hidden'); return;
+  }
+  statusEl.textContent = 'Publishing…';
+  statusEl.className = 'text-xs text-center font-semibold text-slate-400';
+  statusEl.classList.remove('hidden');
+  try {
+    const locationName = suburb || city || 'South Africa';
+    const tier = suburb ? 'Suburb' : (city ? 'City' : 'Country');
+    const hash = 'cs-' + Date.now() + '-' + Math.random().toString(36).slice(2,7);
+    const body = {
+      title, summary, source, category,
+      location_tier: tier, location_name: locationName,
+      url: `https://hungu.co.za`, image: image || '', impact: '', content_hash: hash,
+    };
+    const r = await fetch('/api/articles', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Worker-Key': 'd7ed24f7724910db6fc669b4d54f4397' },
+      body: JSON.stringify(body),
+    });
+    const d = await r.json();
+    if (!r.ok && d.status !== 'duplicate') throw new Error(JSON.stringify(d));
+    statusEl.textContent = '✅ Community story published!';
+    statusEl.className = 'text-xs text-center font-semibold text-green-600';
+    ['cs-title','cs-summary','cs-source','cs-suburb','cs-city','cs-image'].forEach(id => { document.getElementById(id).value = ''; });
+    state.articles = []; await loadApiArticles();
+    await loadStories();
+  } catch(e) {
+    statusEl.textContent = '❌ ' + e.message;
+    statusEl.className = 'text-xs text-center font-semibold text-red-500';
+  }
+}
+
 // ─── Breaking News Ticker ─────────────────────────────────────────────────────
 async function loadBreakingTicker() {
   try {
@@ -1857,6 +2123,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initAuth();
   initGoogleSignIn();
   loadBreakingTicker();
+  loadStories();
 });
 
 </script>
