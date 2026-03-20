@@ -140,6 +140,7 @@ class Article(Base):
         Index("ix_art_status_created",    "status",        "created_at"),
         Index("ix_art_urgent_created",    "urgent",        "created_at"),
         Index("ix_art_source",            "source"),
+        Index("ix_art_url_hash",          "url_hash"),
         Index("ix_art_published_at",      "published_at"),
     )
 

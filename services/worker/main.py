@@ -276,16 +276,17 @@ def _jw_link_for(category: str, jw_topic: str) -> str:
 
 # ─── Deduplication check ──────────────────────────────────────────────────────
 
-def article_exists(ch: str) -> Optional[dict]:
+def article_exists(ch: str, url: str = "") -> Optional[dict]:
     """
     Check API before calling Gemini. Returns existing article info or None.
-    Saves ~4 Gemini credits per duplicate across all scrapers.
+    Checks by content_hash first, then by url_hash as fallback (catches same-source
+    re-scrapes where title/body changed slightly).
     """
     try:
-        req = urllib.request.Request(
-            f"{API_BASE_URL}/articles/hash/{ch}",
-            headers=_worker_headers(),
-        )
+        endpoint = f"{API_BASE_URL}/articles/hash/{ch}"
+        if url:
+            endpoint += f"?url={urllib.parse.quote(url, safe='')}"
+        req = urllib.request.Request(endpoint, headers=_worker_headers())
         with urllib.request.urlopen(req, timeout=10) as resp:
             return json.loads(resp.read())
     except urllib.error.HTTPError as e:
@@ -1119,8 +1120,8 @@ def process_and_submit(raw_articles: list) -> list:
 
         ch = content_hash(raw["title"], raw.get("raw_text", ""))
 
-        # Pre-check: skip if already in DB
-        existing = article_exists(ch)
+        # Pre-check: skip if already in DB (content_hash + URL dedup)
+        existing = article_exists(ch, raw.get("url", ""))
         if existing:
             log.info("SKIP (dup) '%s' — sources: %s", raw["title"][:50], existing.get("sources"))
             # If new source, the API /articles POST will update sources list
@@ -1213,12 +1214,14 @@ def fast_submit(raw_articles: list) -> list:
                 pass
 
         ch = content_hash(raw["title"], raw.get("raw_text", ""))
-        existing = article_exists(ch)
+        existing = article_exists(ch, raw.get("url", ""))
         if existing:
             # Multi-outlet coverage: add new source to sources[] — not a duplicate
             if raw["source"] not in (existing.get("sources") or []):
                 log.info("SOURCE+ '%s' → '%s'", raw["source"], raw["title"][:50])
                 post_article({**raw, "content_hash": ch})
+            else:
+                log.debug("SKIP (same source dup) '%s'", raw["title"][:50])
             continue
 
         # Preserve full raw text as full_context so the enrichment queue has context

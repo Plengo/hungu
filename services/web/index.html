@@ -182,95 +182,6 @@
   </div><!-- /view-onboarding -->
 
 
-  <!-- ── SEARCH / BOOKING CARD (Home) ──────────────────────────────────────────── -->
-  <div id="view-search" class="view hidden flex flex-col min-h-screen">
-
-    <!-- Top hero card -->
-    <div class="bg-[#87ceeb] rounded-b-[3rem] px-6 pt-10 pb-8 shadow-lg">
-      <!-- Logo row -->
-      <div class="flex items-center justify-between mb-6">
-        <img src="/hungu.png" alt="HUNGU" class="h-9 object-contain" onerror="this.style.display='none'; document.getElementById('logo-text').style.display='block'"/>
-        <span id="logo-text" class="text-2xl font-black italic tracking-tight text-white hidden">HUNGU</span>
-        <div id="auth-avatar" class="w-9 h-9 rounded-full bg-white/30 flex items-center justify-center cursor-pointer press" onclick="showView('profile')">
-          <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
-        </div>
-      </div>
-
-      <h1 class="text-white text-3xl font-extrabold leading-tight mb-6">Where are<br/>you going?</h1>
-
-      <!-- Route selector -->
-      <div class="bg-white/20 backdrop-blur rounded-3xl p-5 relative">
-        <div class="flex items-start gap-3">
-          <!-- Timeline dots -->
-          <div class="flex flex-col items-center pt-1 gap-1">
-            <div class="w-3 h-3 rounded-full border-2 border-white bg-transparent"></div>
-            <div class="w-0.5 h-8 bg-white/60"></div>
-            <div class="w-3 h-3 rounded-full bg-white"></div>
-          </div>
-          <!-- Fields -->
-          <div class="flex-1 space-y-3">
-            <div>
-              <p class="text-white/70 text-xs font-semibold uppercase tracking-widest mb-0.5">From</p>
-              <input id="loc-from" type="text" value="Menlyn" placeholder="Your suburb"
-                class="w-full bg-transparent text-white font-bold text-lg outline-none placeholder-white/50 border-b border-white/30 pb-1"
-                oninput="updateUser('suburb', this.value)" />
-            </div>
-            <div>
-              <p class="text-white/70 text-xs font-semibold uppercase tracking-widest mb-0.5">To</p>
-              <input id="loc-to" type="text" value="Ghent" placeholder="Destination / City"
-                class="w-full bg-transparent text-white font-bold text-lg outline-none placeholder-white/50"
-                oninput="updateUser('city', this.value)" />
-            </div>
-          </div>
-        </div>
-        <!-- Swap button -->
-        <button onclick="swapLocations()" class="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-md press">
-          <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/></svg>
-        </button>
-      </div>
-    </div>
-
-    <!-- White bottom card: Date + Passengers + Search -->
-    <div class="mx-4 mt-5 mb-6 bg-white rounded-[2rem] px-6 pt-7 pb-7 shadow-xl flex flex-col gap-6">
-
-      <!-- Date selector -->
-      <div>
-        <h2 class="text-xl font-extrabold text-slate-800 mb-4">Date</h2>
-        <div class="flex gap-5 items-center">
-          <button onclick="setDate('today')" id="btn-today" class="date-btn active font-bold text-sm press">Today</button>
-          <button onclick="setDate('tomorrow')" id="btn-tomorrow" class="date-btn font-medium text-slate-400 text-sm press">Tomorrow</button>
-          <button onclick="showDatePicker()" class="date-btn flex items-center gap-1.5 font-medium text-slate-400 text-sm press">
-            Other Date
-            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-          </button>
-          <input id="date-picker" type="date" class="hidden" onchange="setCustomDate(this.value)" />
-        </div>
-      </div>
-
-      <!-- Passengers -->
-      <div>
-        <h2 class="text-xl font-extrabold text-slate-800 mb-4">Passengers</h2>
-        <div class="flex gap-3">
-          <button onclick="setPassengers(1)" id="p1" class="pass-btn active w-12 h-12 rounded-full font-bold text-base press transition-all">1</button>
-          <button onclick="setPassengers(2)" id="p2" class="pass-btn w-12 h-12 rounded-full font-bold text-base shadow-sm press transition-all">2</button>
-          <button onclick="setPassengers(3)" id="p3" class="pass-btn w-12 h-12 rounded-full font-bold text-base shadow-sm press transition-all">3</button>
-          <button onclick="setPassengers(4)" id="p4" class="pass-btn w-12 h-12 rounded-full font-bold text-base shadow-sm press transition-all">4</button>
-        </div>
-      </div>
-
-      <!-- Search / Go button -->
-      <button onclick="showView('feed')" class="w-full bg-[#4b5d6c] text-white py-4 rounded-full font-bold text-base shadow-lg press mt-1">
-        Search
-      </button>
-    </div>
-
-    <!-- Bottom nav -->
-    <div id="nav-search" class="mt-auto">
-      <!-- intentionally empty — nav shown on feed/detail -->
-    </div>
-  </div><!-- /view-search -->
-
-
   <!-- ── NEWS FEED ──────────────────────────────────────────────────────────── -->
   <div id="view-feed" class="view hidden flex flex-col min-h-screen bg-[#f0f2f5]">
 
@@ -1585,80 +1496,6 @@ async function fetchStats() {
   }
 }
 
-// ─── Search card helpers ───────────────────────────────────────────────────────
-function swapLocations() {
-  const f = document.getElementById('loc-from');
-  const t = document.getElementById('loc-to');
-  if (!f || !t) return;
-  [f.value, t.value] = [t.value, f.value];
-  state.user.suburb = f.value; state.user.city = t.value; saveState();
-}
-
-function setDate(val) {
-  state.date = val;
-  document.querySelectorAll('.date-btn').forEach(b => { b.classList.remove('active'); b.classList.add('text-slate-400', 'font-medium'); });
-  const btn = document.getElementById('btn-' + val);
-  if (btn) { btn.classList.add('active'); btn.classList.remove('text-slate-400', 'font-medium'); }
-}
-function showDatePicker() { document.getElementById('date-picker').click(); }
-function setCustomDate(val) { state.date = val; }
-
-function setPassengers(n) {
-  state.passengers = n;
-  for (let i = 1; i <= 4; i++) {
-    const b = document.getElementById('p' + i);
-    if (b) b.classList.toggle('active', i === n);
-  }
-}
-
-function _promoCardHtml() {
-  return `<div class="mx-4 mb-4 rounded-3xl overflow-hidden shadow-lg" style="background:linear-gradient(135deg,#0d1b2a 0%,#1a3a4a 60%,#4a90a4 100%)">
-    <div class="px-5 pt-5 pb-4">
-      <p class="text-[10px] font-extrabold uppercase tracking-widest text-[#4a90a4] mb-1">🇿🇦 South Africa's #1 Hyper-Local News App</p>
-      <h2 class="text-white text-xl font-black leading-tight mb-1">Know what's happening<br>in <span class="text-[#87ceeb]">your street.</span></h2>
-      <p class="text-white/60 text-xs mb-4">AI-powered news filtered to your suburb, city &amp; province — with instant action steps.</p>
-      <button onclick="shareApp()" class="w-full bg-white text-[#0d1b2a] font-extrabold text-sm py-3 rounded-2xl press flex items-center justify-center gap-2 shadow">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M4 12v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
-        Share HUNGU with friends
-      </button>
-    </div>
-    <div class="flex border-t border-white/10">
-      <div class="flex-1 px-4 py-3 text-center border-r border-white/10">
-        <p class="text-white font-extrabold text-lg">Free</p>
-        <p class="text-white/50 text-[10px] uppercase font-bold">Always</p>
-      </div>
-      <div class="flex-1 px-4 py-3 text-center border-r border-white/10">
-        <p class="text-white font-extrabold text-lg">AI</p>
-        <p class="text-white/50 text-[10px] uppercase font-bold">Powered</p>
-      </div>
-      <div class="flex-1 px-4 py-3 text-center">
-        <p class="text-white font-extrabold text-lg">Local</p>
-        <p class="text-white/50 text-[10px] uppercase font-bold">First</p>
-      </div>
-    </div>
-  </div>`;
-}
-
-function shareApp() {
-  const url = 'https://hungu.co.za';
-  const text = '🇿🇦 HUNGU — AI-powered hyper-local South African news. Know what\'s happening in your street. Free & instant.';
-  if (navigator.share) {
-    navigator.share({ title: 'HUNGU', text, url }).catch(() => _shareFilallback(url));
-  } else {
-    _shareFilallback(url);
-  }
-}
-function _shareFilallback(url) {
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(url).then(() => showToast('Link copied to clipboard!')).catch(() => _sharePrompt(url));
-  } else {
-    _sharePrompt(url);
-  }
-}
-function _sharePrompt(url) {
-  const box = prompt('Copy this link to share HUNGU:', url);
-}
-
 // ─── Category filter ──────────────────────────────────────────────────────────
 function _feedFooterHtml() {
   return `<footer class="px-4 py-8 text-center">
@@ -2009,7 +1846,7 @@ async function loadStories() {
   const suburb = (state.user.suburb || '').trim();
   const city   = (state.user.city   || '').toLowerCase();
 
-  // Try suburb-scoped community articles first, then general Community feed
+  // Fetch community / social media articles only
   let articles = [];
   try {
     if (suburb) {
@@ -2025,12 +1862,13 @@ async function loadStories() {
     }
   } catch(e) {}
 
-  // Fall back: use interesting general articles (non-breaking, non-job, non-auction)
-  if (articles.length < 3) {
-    const fallback = getArticles()
-      .filter(a => !a.urgent && !['Auctions','Jobs'].includes(a.category));
-    articles = [...articles, ...fallback];
-  }
+  // Keep ONLY social media / unverified content — no regular verified news
+  articles = articles.filter(a => _isUnverified(a));
+
+  // Deduplicate by article id
+  const seen = new Set();
+  articles = articles.filter(a => { const k = a.id || a.title; if (seen.has(k)) return false; seen.add(k); return true; });
+
   if (!articles.length) return;
 
   // Sort: suburb first → city → SA → global

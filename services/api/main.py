@@ -325,13 +325,19 @@ async def react_article(article_id: str, reaction: str = Query(..., pattern="^(l
 
 @app.get("/articles/hash/{content_hash_val}")
 async def article_exists(content_hash_val: str, request: Request,
+                          url: Optional[str] = Query(None),
                           db: Session = Depends(get_db)):
     """
     Worker calls this BEFORE running Gemini to avoid wasting AI credits on duplicates.
+    Checks by content_hash first, then by url_hash as fallback (catches same-source
+    re-scrapes where title/body changed slightly).
     Returns 200+sources if article already exists, 404 if it does not.
     """
     require_worker_key(request)
     a = db.query(ArticleModel).filter(ArticleModel.content_hash == content_hash_val).first()
+    if not a and url:
+        uh = make_url_hash(url)
+        a = db.query(ArticleModel).filter(ArticleModel.url_hash == uh).first()
     if not a:
         raise HTTPException(status_code=404, detail="Not found")
     return {"id": str(a.id), "sources": a.sources or [a.source]}
@@ -402,8 +408,14 @@ async def create_article(body: ArticleIn, request: Request,
     require_worker_key(request)
     ch = make_content_hash(body.title, body.raw_text or body.full_context or "")
 
-    # Dedup: if exists, just add the source name if it's new
+    # Dedup: if exists by content_hash, just add the source name if it's new
     existing = db.query(ArticleModel).filter(ArticleModel.content_hash == ch).first()
+
+    # URL-based dedup: catches same-source re-scrapes where title/body changed slightly
+    if not existing and body.url:
+        uh = make_url_hash(body.url)
+        existing = db.query(ArticleModel).filter(ArticleModel.url_hash == uh).first()
+
     if existing:
         srcs = list(existing.sources or [existing.source])
         if body.source not in srcs:
