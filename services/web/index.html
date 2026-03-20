@@ -14,6 +14,8 @@
   <meta name="google-adsense-account" content="ca-pub-6660023958349772">
   <!-- Google Identity Services -->
   <script src="https://accounts.google.com/gsi/client" async></script>
+  <!-- Google Places autocomplete -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAVyZ_6IIeuLJk2IBxF8XlxCAcIQ58aseM&libraries=places&callback=_initPlacesAutocomplete" async defer></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Google AdSense -->
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6660023958349772" crossorigin="anonymous"></script>
@@ -152,17 +154,17 @@
         <div class="space-y-4">
           <div>
             <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">🏘 Suburb / Neighbourhood</label>
-            <input id="ob-suburb" type="text" placeholder="e.g. Menlyn, Sandton, Rosebank"
+            <input id="ob-suburb" type="text" placeholder="e.g. Menlyn, Sandton, Rosebank" autocomplete="off"
               class="mt-1.5 w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold outline-none focus:border-[#4a90a4]"/>
           </div>
           <div>
             <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">🏙 City / Town</label>
-            <input id="ob-city" type="text" placeholder="e.g. Pretoria, Johannesburg, Cape Town"
+            <input id="ob-city" type="text" placeholder="e.g. Pretoria, Johannesburg, Cape Town" autocomplete="off"
               class="mt-1.5 w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold outline-none focus:border-[#4a90a4]"/>
           </div>
           <div>
             <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">🗺 Province</label>
-            <input id="ob-province" type="text" placeholder="e.g. Gauteng, Western Cape, KZN"
+            <input id="ob-province" type="text" placeholder="e.g. Gauteng, Western Cape, KZN" autocomplete="off"
               class="mt-1.5 w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold outline-none focus:border-[#4a90a4]"/>
           </div>
           <div>
@@ -515,15 +517,15 @@
         <div class="space-y-3">
           <div>
             <label class="text-xs font-semibold text-slate-500 uppercase tracking-widest">Suburb</label>
-            <input id="prof-suburb" type="text" class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-800 outline-none focus:border-[#4a90a4]" oninput="updateUser('suburb',this.value); syncLocFields()"/>
+            <input id="prof-suburb" type="text" autocomplete="off" class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-800 outline-none focus:border-[#4a90a4]" oninput="updateUser('suburb',this.value); syncLocFields()"/>
           </div>
           <div>
             <label class="text-xs font-semibold text-slate-500 uppercase tracking-widest">City</label>
-            <input id="prof-city" type="text" class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-800 outline-none focus:border-[#4a90a4]" oninput="updateUser('city',this.value); syncLocFields()" />
+            <input id="prof-city" type="text" autocomplete="off" class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-800 outline-none focus:border-[#4a90a4]" oninput="updateUser('city',this.value); syncLocFields()" />
           </div>
           <div>
             <label class="text-xs font-semibold text-slate-500 uppercase tracking-widest">Province</label>
-            <input id="prof-province" type="text" class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-800 outline-none focus:border-[#4a90a4]" oninput="updateUser('province',this.value)" />
+            <input id="prof-province" type="text" autocomplete="off" class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-800 outline-none focus:border-[#4a90a4]" oninput="updateUser('province',this.value)" />
           </div>
           <div>
             <label class="text-xs font-semibold text-slate-500 uppercase tracking-widest">Country</label>
@@ -1905,15 +1907,75 @@ let _stories = [];
 let _storyIdx = 0;
 let _storyTimer = null;
 
+// ─── Google Places autocomplete ───────────────────────────────────────────────
+function _initPlacesAutocomplete() {
+  // SA-biased autocomplete for (sublocality/neighbourhood/city/province) inputs
+  const opts = { componentRestrictions: { country: 'za' }, types: ['geocode'] };
+
+  // Helper: attach autocomplete + extract address parts into callback
+  function _attachAC(inputId, onPlace) {
+    const el = document.getElementById(inputId);
+    if (!el || !window.google?.maps?.places) return;
+    const ac = new google.maps.places.Autocomplete(el, opts);
+    ac.addListener('place_changed', () => {
+      const place = ac.getPlace();
+      if (!place.address_components) return;
+      const get = types => {
+        const c = place.address_components.find(c => types.some(t => c.types.includes(t)));
+        return c ? c.long_name : '';
+      };
+      onPlace({
+        suburb:   get(['sublocality_level_1','neighborhood','sublocality','locality']),
+        city:     get(['locality','administrative_area_level_2']),
+        province: get(['administrative_area_level_1']),
+        country:  get(['country']),
+      });
+    });
+  }
+
+  // Onboarding inputs
+  _attachAC('ob-suburb', p => {
+    if (p.suburb)   document.getElementById('ob-suburb').value   = p.suburb;
+    if (p.city)     document.getElementById('ob-city').value     = p.city;
+    if (p.province) document.getElementById('ob-province').value = p.province;
+    if (p.country)  document.getElementById('ob-country').value  = p.country;
+  });
+  _attachAC('ob-city', p => {
+    if (p.city)     document.getElementById('ob-city').value     = p.city;
+    if (p.province) document.getElementById('ob-province').value = p.province;
+  });
+
+  // Profile inputs
+  _attachAC('prof-suburb', p => {
+    if (p.suburb)   { document.getElementById('prof-suburb').value   = p.suburb;   updateUser('suburb', p.suburb);   syncLocFields(); loadStories(); }
+    if (p.city)     { document.getElementById('prof-city').value     = p.city;     updateUser('city',   p.city);     syncLocFields(); }
+    if (p.province) { document.getElementById('prof-province').value = p.province; updateUser('province', p.province); }
+    if (p.country)  { const el = document.getElementById('prof-country'); if (el) { el.value = p.country; updateUser('country', p.country); } }
+  });
+  _attachAC('prof-city', p => {
+    if (p.city)     { document.getElementById('prof-city').value     = p.city;     updateUser('city',   p.city);     syncLocFields(); }
+    if (p.province) { document.getElementById('prof-province').value = p.province; updateUser('province', p.province); }
+  });
+}
+
 async function loadStories() {
-  const suburb = (state.user.suburb || '').toLowerCase();
+  const suburb = (state.user.suburb || '').trim();
   const city   = (state.user.city   || '').toLowerCase();
 
-  // Try Community category first
+  // Try suburb-scoped community articles first, then general Community feed
   let articles = [];
   try {
-    const r = await fetch(`${API_URL}/feed?category=Community&limit=30`);
-    if (r.ok) articles = await r.json();
+    if (suburb) {
+      const r = await fetch(`${API_URL}/feed?category=Community&location=${encodeURIComponent(suburb)}&limit=30`);
+      if (r.ok) articles = await r.json();
+    }
+  } catch(e) {}
+  // Fall back to all community articles if suburb fetch returned nothing
+  try {
+    if (articles.length < 3) {
+      const r = await fetch(`${API_URL}/feed?category=Community&limit=30`);
+      if (r.ok) { const all = await r.json(); articles = [...articles, ...all]; }
+    }
   } catch(e) {}
 
   // Fall back: use interesting general articles (non-breaking, non-job, non-auction)

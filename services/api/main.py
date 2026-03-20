@@ -274,6 +274,7 @@ async def create_device_user(db: Session = Depends(get_db)):
 @app.get("/feed")
 async def get_feed(
     category: Optional[str] = Query(None),
+    location: Optional[str] = Query(None),
     limit: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
 ):
@@ -285,6 +286,9 @@ async def get_feed(
     )
     if category and category.lower() != "all":
         q = q.filter(ArticleModel.category.ilike(category))
+    if location:
+        # Case-insensitive partial match on location_name
+        q = q.filter(ArticleModel.location_name.ilike(f"%{location.strip()}%"))
     articles = q.order_by(ArticleModel.urgent.desc(), ArticleModel.created_at.desc()).limit(limit).all()
     return [_to_out(a) for a in articles]
 
@@ -511,6 +515,24 @@ async def stats_ping(body: PingIn, db: Session = Depends(get_db)):
         return
     db.add(PageView(visitor_id=vid, page=body.page or "feed"))
     db.commit()
+
+@app.get("/worker/active-suburbs")
+async def get_active_suburbs(request: Request, db: Session = Depends(get_db)):
+    """
+    Return list of distinct suburbs that at least one registered user has set.
+    Used by the worker to know which suburbs need community scraping.
+    """
+    require_worker_key(request)
+    from sqlalchemy import func, distinct
+    rows = (
+        db.query(UserModel.suburb)
+          .filter(UserModel.suburb != None, UserModel.suburb != "")
+          .distinct()
+          .limit(100)
+          .all()
+    )
+    suburbs = [r[0].strip() for r in rows if r[0] and r[0].strip()]
+    return {"suburbs": suburbs}
 
 @app.get("/stats")
 async def get_platform_stats(
