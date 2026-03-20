@@ -1846,7 +1846,7 @@ async function loadStories() {
   const suburb = (state.user.suburb || '').trim();
   const city   = (state.user.city   || '').toLowerCase();
 
-  // Fetch community / social media articles only
+  // Fetch community / social media articles first
   let articles = [];
   try {
     if (suburb) {
@@ -1854,7 +1854,6 @@ async function loadStories() {
       if (r.ok) articles = await r.json();
     }
   } catch(e) {}
-  // Fall back to all community articles if suburb fetch returned nothing
   try {
     if (articles.length < 3) {
       const r = await fetch(`${API_URL}/feed?category=Community&limit=30`);
