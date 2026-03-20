@@ -305,10 +305,6 @@
           <p class="text-[10px] font-extrabold uppercase tracking-widest text-[#87ceeb] mb-1">🇿🇦 South Africa's #1 Hyper-Local News App</p>
           <h2 class="text-white text-xl font-black leading-tight mb-1">Know what's happening<br>in <span class="text-[#87ceeb]">your street.</span></h2>
           <p class="text-white/60 text-xs mb-4">AI-powered news filtered to your suburb, city &amp; province — with instant action steps.</p>
-          <button onclick="shareApp()" class="w-full bg-white text-[#0d1b2a] font-extrabold text-sm py-3 rounded-2xl press flex items-center justify-center gap-2 shadow">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M4 12v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
-            Share HUNGU with friends
-          </button>
         </div>
         <div class="flex border-t border-white/10">
           <div class="flex-1 px-4 py-3 text-center border-r border-white/10"><p class="text-white font-extrabold text-lg">Free</p><p class="text-white/50 text-[10px] uppercase font-bold">Always</p></div>
@@ -328,7 +324,7 @@
           <button onclick="toggleReading()" id="read-btn"
             class="w-full bg-white text-black py-3 rounded-2xl flex items-center justify-center gap-2 font-bold text-sm shadow">
             <svg id="read-icon" class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-            <span id="read-label">Read my news</span>
+            <span id="read-label">Listen to news</span>
           </button>
         </div>
       </div>
@@ -1787,8 +1783,10 @@ function toggleReading() {
     window.speechSynthesis && window.speechSynthesis.cancel();
     state.reading = false;
   } else {
-    const items = getArticles().slice(0, 5);
-    const script = items.map(x => { const a = norm(x); return _buildTtsText(a); }).join('. Next article: ');
+    const all = getArticles();
+    const breaking = all.filter(x => norm(x).urgent);
+    const items = (breaking.length > 0 ? breaking : all).slice(0, 10);
+    const script = items.map(x => { const a = norm(x); return _buildTtsText(a); }).join('. Next: ');
     // Force speak (bypass toggle-stop)
     window.speechSynthesis.cancel();
     const clean = _stripEmoji(script.replace(/<[^>]*>/g, '').replace(/&#39;/g, "'")).trim();
@@ -1797,11 +1795,11 @@ function toggleReading() {
     const voice = getSpeakVoice();
     if (voice) utt.voice = voice;
     utt.rate = 0.9; utt.pitch = 1.0; utt.volume = 1.0;
-    utt.onend = () => { state.reading = false; document.getElementById('read-label').textContent = 'Read my news'; document.getElementById('read-icon').innerHTML = '<path d="M8 5v14l11-7z"/>'; };
+    utt.onend = () => { state.reading = false; document.getElementById('read-label').textContent = 'Listen to news'; document.getElementById('read-icon').innerHTML = '<path d="M8 5v14l11-7z"/>'; };
     window.speechSynthesis.speak(utt);
     state.reading = true;
   }
-  document.getElementById('read-label').textContent = state.reading ? 'Reading your news…' : 'Read my news';
+  document.getElementById('read-label').textContent = state.reading ? 'Listening…' : 'Listen to news';
   document.getElementById('read-icon').innerHTML = state.reading
     ? '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>'
     : '<path d="M8 5v14l11-7z"/>';
