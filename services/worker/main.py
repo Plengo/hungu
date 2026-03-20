@@ -227,18 +227,17 @@ def call_gemini(prompt: str, api_key: str = "") -> Optional[dict]:
 def build_prompt(title: str, raw_text: str, source: str, category: str) -> str:
     return f"""You are the HUNGU AI engine — a South African Christian news analyser.
 Analyse this article and respond ONLY with valid JSON (no markdown, no ```json wrapper).
-Every field below is REQUIRED — do NOT leave any field empty or null.
 
 {{
   "summary": "A comprehensive 3-5 sentence summary. Go BEYOND the headline: include key details, numbers, dates, people involved, context, and implications. If the article text is short, expand with relevant background a South African reader needs.",
   "impact": "2-3 sentences explaining what this means for an ordinary South African citizen today. Be specific: mention how it affects their wallet, safety, rights, community, or daily life. Never say 'coming soon' or 'pending'.",
   "actions_now": "• Action 1: something the reader can do RIGHT NOW\n• Action 2: another immediate step\n• Action 3: a practical thing to check or prepare today",
   "actions_later": "• Action 1: something to do in the coming days or weeks\n• Action 2: a longer-term preparation step\n• Action 3: how to stay informed or get involved",
-  "verse": "A relevant Bible verse reference, e.g. Matthew 24:7",
-  "verse_text": "The NWT (New World Translation) text of that verse — quote it accurately",
-  "verse_niv": "The same verse quoted in the NIV (New International Version) translation",
-  "insight": "1-2 sentences connecting this news event to biblical prophecy or spiritual principles. How does God's Word help us understand what is happening?",
-  "jw_topic": "3-5 keywords for a JW.org Bible topic search (e.g. 'end times economic hardship God's kingdom')",
+  "verse": "ONLY include if the article touches on themes like death, war, suffering, injustice, natural disaster, morality, greed, corruption, or faith. Otherwise leave as empty string.",
+  "verse_text": "If verse is set: the NWT (New World Translation) text of that verse — quote it accurately. Otherwise empty string.",
+  "verse_niv": "If verse is set: the same verse quoted in the NIV (New International Version) translation. Otherwise empty string.",
+  "insight": "If verse is set: 1-2 sentences connecting this news event to biblical prophecy or spiritual principles. Otherwise empty string.",
+  "jw_topic": "If verse is set: 3-5 keywords for a JW.org Bible topic search. Otherwise empty string.",
   "urgent": true or false
 }}
 
@@ -246,10 +245,9 @@ RULES:
 1. The summary MUST be 3-5 sentences minimum with genuinely useful detail.
 2. The impact MUST be practical and specific to South Africans — never generic.
 3. actions_now and actions_later MUST each have 2-3 bullet points starting with •
-4. The verse MUST be a real Bible verse relevant to the article topic.
-5. verse_text MUST be the NWT wording; verse_niv MUST be the NIV wording of the SAME verse.
-6. The insight MUST connect the news to scripture — be thoughtful, not generic.
-7. Return ONLY the JSON object. No extra text before or after.
+4. Spiritual fields (verse, verse_text, verse_niv, insight, jw_topic) are OPTIONAL. Only include them if the article genuinely connects to deep human themes — death, war, suffering, injustice, disasters, morality, corruption. Do NOT force a verse onto political party elections, sports results, property listings, or routine economic news.
+5. If you do include a verse, it MUST be real and directly relevant. verse_text must be NWT; verse_niv must be the same verse in NIV.
+6. Return ONLY the JSON object. No extra text before or after.
 
 Source: {source}
 Category: {category}
