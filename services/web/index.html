@@ -1308,11 +1308,6 @@ function openArticle(id) {
       ${a.category === 'Auctions' ? '' : _sectionImpact(a)}
       ${_sectionActions(a)}
 
-      ${a.fullContext && a.fullContext !== a.summary ? `
-      <section class="mb-6">
-        <p class="text-slate-600 text-sm sm:text-base leading-relaxed">${a.fullContext}</p>
-      </section>` : ''}
-
       ${a.category === 'Auctions' ? '' : _sectionSpiritual(a, jwLink)}
 
       ${a.url ? `<p class="text-xs text-slate-400 text-center mb-4"><a href="${a.url}" target="_blank" rel="noopener noreferrer" class="underline underline-offset-2">📎 Read original source</a></p>` : ''}
@@ -2032,7 +2027,7 @@ async function loadStories() {
 
   // Fall back: use interesting general articles (non-breaking, non-job, non-auction)
   if (articles.length < 3) {
-    const fallback = (state.articles.length ? state.articles : [])
+    const fallback = getArticles()
       .filter(a => !a.urgent && !['Auctions','Jobs'].includes(a.category));
     articles = [...articles, ...fallback];
   }
@@ -2250,7 +2245,6 @@ document.addEventListener('DOMContentLoaded', () => {
   initAuth();
   initGoogleSignIn();
   loadBreakingTicker();
-  loadStories();
 });
 
 </script>
