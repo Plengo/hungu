@@ -60,16 +60,6 @@
 <body class="bg-[#4b5d6c] min-h-screen">
 
 <!-- ═══════════════════════════════════════════ APP SHELL ═══════════════════════ -->
-<!-- ═══════════════════ BREAKING NEWS TICKER ═════════════════════════════ -->
-<div id="breaking-bar" class="hidden fixed top-0 left-0 right-0 z-[9999] bg-red-600 text-white flex items-stretch" style="min-height:36px">
-  <div class="flex-shrink-0 bg-red-800 flex items-center px-3">
-    <span class="text-[11px] font-black tracking-widest uppercase whitespace-nowrap animate-pulse">🔴 BREAKING</span>
-  </div>
-  <div class="flex-1 overflow-hidden flex items-center">
-    <div id="breaking-ticker" class="whitespace-nowrap text-sm font-semibold px-4 ticker-scroll"></div>
-  </div>
-  <button onclick="document.getElementById('breaking-bar').classList.add('hidden')" class="flex-shrink-0 px-3 text-white/70 hover:text-white text-lg leading-none">×</button>
-</div>
 <style>
 @keyframes ticker { 0%{transform:translateX(100%)} 100%{transform:translateX(-100%)} }
 .ticker-scroll { animation: ticker 28s linear infinite; }
@@ -283,7 +273,19 @@
   <div id="view-feed" class="view hidden flex flex-col min-h-screen bg-[#f0f2f5]">
 
     <!-- Sticky header -->
-    <header class="sticky top-0 z-40 bg-[#87ceeb] px-4 pt-6 pb-4 flex justify-between items-center">
+    <header class="sticky top-0 z-40 flex flex-col">
+      <!-- Breaking news ticker — hidden when no urgent articles -->
+      <div id="breaking-bar" class="hidden bg-red-600 text-white flex items-stretch" style="min-height:34px">
+        <div class="flex-shrink-0 bg-red-800 flex items-center px-3">
+          <span class="text-[10px] font-black tracking-widest uppercase whitespace-nowrap animate-pulse">🔴 BREAKING</span>
+        </div>
+        <div class="flex-1 overflow-hidden flex items-center">
+          <div id="breaking-ticker" class="whitespace-nowrap text-sm font-semibold px-3 ticker-scroll"></div>
+        </div>
+        <button onclick="document.getElementById('breaking-bar').classList.add('hidden')" class="flex-shrink-0 px-3 text-white/70 hover:text-white text-xl leading-none">×</button>
+      </div>
+      <!-- Main header bar -->
+      <div class="bg-[#87ceeb] px-4 pt-6 pb-4 flex justify-between items-center">
       <div class="flex items-center gap-2 cursor-pointer press" onclick="showView('feed')">
         <img src="/hungu.png" alt="HUNGU" class="h-8 object-contain" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'text-xl font-black italic text-white',textContent:'HUNGU'}))"/>
       </div>
@@ -293,6 +295,7 @@
           <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
         </button>
       </div>
+      </div><!-- /main header bar -->
     </header>
 
     <!-- Promo card -->
@@ -1521,10 +1524,20 @@ function shareApp() {
   const url = 'https://hungu.co.za';
   const text = '🇿🇦 HUNGU — AI-powered hyper-local South African news. Know what\'s happening in your street. Free & instant.';
   if (navigator.share) {
-    navigator.share({ title: 'HUNGU', text, url }).catch(() => {});
+    navigator.share({ title: 'HUNGU', text, url }).catch(() => _shareFilallback(url));
   } else {
-    navigator.clipboard && navigator.clipboard.writeText(url).then(() => showToast('Link copied!'));
+    _shareFilallback(url);
   }
+}
+function _shareFilallback(url) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(url).then(() => showToast('Link copied to clipboard!')).catch(() => _sharePrompt(url));
+  } else {
+    _sharePrompt(url);
+  }
+}
+function _sharePrompt(url) {
+  const box = prompt('Copy this link to share HUNGU:', url);
 }
 
 // ─── Category filter ──────────────────────────────────────────────────────────
@@ -1617,8 +1630,11 @@ function getSpeakVoice() {
     if (v) { _ttsVoice = v; return v; }
   }
   // Fallback: any en-ZA voice first, then any English voice
-  const zaVoice = voices.find(v => v.lang && v.lang.startsWith('en-ZA'));
+  const zaVoice = voices.find(v => v.lang === 'en-ZA' || (v.lang && v.lang.startsWith('en-ZA')));
   if (zaVoice) { _ttsVoice = zaVoice; return zaVoice; }
+  // Try any voice with 'south africa' in name
+  const saName = voices.find(v => v.name && v.name.toLowerCase().includes('south africa'));
+  if (saName) { _ttsVoice = saName; return saName; }
   _ttsVoice = voices.find(v => v.lang && v.lang.startsWith('en')) || voices[0] || null;
   return _ttsVoice;
 }
@@ -1819,19 +1835,14 @@ async function loadBreakingTicker() {
     if (!res.ok) return;
     const articles = await res.json();
     const urgent = articles.filter(a => a.urgent);
-    if (!urgent.length) return;
     const bar = document.getElementById('breaking-bar');
+    if (!bar) return;
+    if (!urgent.length) { bar.classList.add('hidden'); return; }
     const ticker = document.getElementById('breaking-ticker');
-    // Build ticker items: title + source + clickable
     ticker.innerHTML = urgent.map(a =>
-      `<span class="mr-10">
-        <a href="${a.url || '#'}" target="_blank" rel="noopener" class="underline underline-offset-2 hover:text-yellow-200 cursor-pointer" onclick="event.stopPropagation(); openArticle('${a.id}'); return false;">${a.title}</a>
-        <span class="text-red-200 text-xs ml-2">— ${a.source || 'HUNGU'}</span>
-      </span>`
-    ).join('<span class="mr-10 text-red-300">◆</span>');
+      `<span class="mr-10"><span class="cursor-pointer underline underline-offset-2 hover:text-yellow-200" onclick="openArticle('${a.id}')">${a.title}</span><span class="text-red-200 text-xs ml-2">— ${a.source || 'HUNGU'}</span></span>`
+    ).join('<span class="mx-8 text-red-300">◆</span>');
     bar.classList.remove('hidden');
-    // Push content down so bar doesn't overlap app
-    document.getElementById('app').style.paddingTop = bar.offsetHeight + 'px';
   } catch(e) {}
 }
 
