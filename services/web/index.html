@@ -60,6 +60,22 @@
 <body class="bg-[#4b5d6c] min-h-screen">
 
 <!-- ═══════════════════════════════════════════ APP SHELL ═══════════════════════ -->
+<!-- ═══════════════════ BREAKING NEWS TICKER ═════════════════════════════ -->
+<div id="breaking-bar" class="hidden fixed top-0 left-0 right-0 z-[9999] bg-red-600 text-white flex items-stretch" style="min-height:36px">
+  <div class="flex-shrink-0 bg-red-800 flex items-center px-3">
+    <span class="text-[11px] font-black tracking-widest uppercase whitespace-nowrap animate-pulse">🔴 BREAKING</span>
+  </div>
+  <div class="flex-1 overflow-hidden flex items-center">
+    <div id="breaking-ticker" class="whitespace-nowrap text-sm font-semibold px-4 ticker-scroll"></div>
+  </div>
+  <button onclick="document.getElementById('breaking-bar').classList.add('hidden')" class="flex-shrink-0 px-3 text-white/70 hover:text-white text-lg leading-none">×</button>
+</div>
+<style>
+@keyframes ticker { 0%{transform:translateX(100%)} 100%{transform:translateX(-100%)} }
+.ticker-scroll { animation: ticker 28s linear infinite; }
+.ticker-scroll:hover { animation-play-state: paused; }
+</style>
+
 <div id="app" class="w-full min-h-screen bg-[#4b5d6c] relative flex flex-col">
 
   <!-- ── LANDING PAGE ──────────────────────────────────────────────────────────────── -->
@@ -1724,6 +1740,29 @@ async function adminToggleUrgent(id, btn) {
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
+// ─── Breaking News Ticker ─────────────────────────────────────────────────────
+async function loadBreakingTicker() {
+  try {
+    const res = await fetch('/api/feed?limit=50');
+    if (!res.ok) return;
+    const articles = await res.json();
+    const urgent = articles.filter(a => a.urgent);
+    if (!urgent.length) return;
+    const bar = document.getElementById('breaking-bar');
+    const ticker = document.getElementById('breaking-ticker');
+    // Build ticker items: title + source + clickable
+    ticker.innerHTML = urgent.map(a =>
+      `<span class="mr-10">
+        <a href="${a.url || '#'}" target="_blank" rel="noopener" class="underline underline-offset-2 hover:text-yellow-200 cursor-pointer" onclick="event.stopPropagation(); openArticle('${a.id}'); return false;">${a.title}</a>
+        <span class="text-red-200 text-xs ml-2">— ${a.source || 'HUNGU'}</span>
+      </span>`
+    ).join('<span class="mr-10 text-red-300">◆</span>');
+    bar.classList.remove('hidden');
+    // Push content down so bar doesn't overlap app
+    document.getElementById('app').style.paddingTop = bar.offsetHeight + 'px';
+  } catch(e) {}
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const f = document.getElementById('loc-from');
   const t = document.getElementById('loc-to');
@@ -1731,6 +1770,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (t) t.value = state.user.city;
   initAuth();
   initGoogleSignIn();
+  loadBreakingTicker();
 });
 
 </script>
