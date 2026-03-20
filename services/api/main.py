@@ -284,7 +284,7 @@ async def get_feed(
     )
     if category and category.lower() != "all":
         q = q.filter(ArticleModel.category.ilike(category))
-    articles = q.order_by(ArticleModel.created_at.desc()).limit(limit).all()
+    articles = q.order_by(ArticleModel.urgent.desc(), ArticleModel.created_at.desc()).limit(limit).all()
     return [_to_out(a) for a in articles]
 
 @app.get("/article/{article_id}")
@@ -559,6 +559,18 @@ async def archive_old(request: Request, db: Session = Depends(get_db)):
     db.commit()
     return {"archived": n}
 
+# ─── Admin: toggle urgent / breaking news ─────────────────────────────────────
+
+@app.patch("/admin/articles/{article_id}/urgent")
+async def toggle_urgent(article_id: str, request: Request, db: Session = Depends(get_db)):
+    require_admin(request)
+    a = db.query(ArticleModel).filter(ArticleModel.id == article_id).first()
+    if not a:
+        raise HTTPException(status_code=404, detail="Article not found")
+    a.urgent = not bool(a.urgent)
+    db.commit()
+    return {"id": article_id, "urgent": a.urgent}
+
 @app.get("/admin/dashboard")
 async def admin_dashboard(request: Request, db: Session = Depends(get_db)):
     """Full platform stats. Protected by X-Admin-Key header."""
@@ -618,7 +630,7 @@ async def admin_dashboard(request: Request, db: Session = Depends(get_db)):
         "recent_articles": [
             {"id": str(a.id), "title": a.title, "category": a.category,
              "source": a.source, "created_at": a.created_at.isoformat(),
-             "enriched": bool(a.actions_now)}
+             "enriched": bool(a.actions_now), "urgent": bool(a.urgent)}
             for a in recent
         ],
     }
