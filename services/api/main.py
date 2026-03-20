@@ -411,7 +411,7 @@ async def create_article(body: ArticleIn, request: Request,
         actions_now=body.actions_now,
         actions_later=body.actions_later,
         jw_link=body.jw_link,
-        urgent=body.urgent,
+        urgent=False,  # only admin can mark urgent via PATCH /admin/articles/{id}/urgent
         published_at=pub_at,
     )
     try:
