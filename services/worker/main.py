@@ -34,6 +34,7 @@ Rate limits
 """
 
 import os, time, logging, json, re, hashlib, random
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import urllib.request, urllib.parse, urllib.error
 from datetime import datetime, timezone
 from typing import Optional
@@ -68,19 +69,23 @@ CATEGORY_IMAGES = {
 }
 
 # ─── Tiered scraping schedule ─────────────────────────────────────────────────
-# (name, function_name, interval_seconds)
+# (name, function_name, interval_seconds, fast_mode)
+# fast_mode=True  → fast_submit(): store raw article immediately, no AI during scrape.
+#                   AI enrichment handled by the 3-min enrich_old cycle.
+# fast_mode=False → process_and_submit(): full AI inline (used only for auctions).
 SCHEDULE = [
-    ("enrich_old",       "enrich_old_articles",  180),    #  3 min  — retroactive AI enrichment (FIRST)
-    ("breaking_world",   "scrape_bbc_world",    3600),    # 60 min  — BBC World + Al Jazeera
-    ("breaking_sa",      "scrape_sa_breaking",  3600),    # 60 min  — Daily Maverick + News24
-    ("local_gov_news",   "scrape_gov_news",     3600),    # 60 min
-    ("sa_local_news",    "scrape_sa_local",     3600),    # 60 min  — TimesLIVE + M&G
-    ("sa_x_accounts",    "scrape_sa_x",         3600),    # 60 min  — Nitter/X verified SA
-    ("gazette_gpw",      "scrape_gazette",     21600),    # 6 hours
-    ("policy_parliament","scrape_parliament",  21600),    # 6 hours
-    ("jobs_dpsa",        "scrape_jobs",        86400),    # 24 hours
-    ("auctions",         "scrape_auctions",    21600),    # 6 hours — property auctions
-    ("archive_cleanup",  "archive_old_posts",  86400),    # 24 hours
+    ("enrich_old",        "enrich_old_articles",   180, False),  #  3 min  — parallel AI enrichment (FIRST)
+    ("breaking_world",    "scrape_bbc_world",        60, True),   #  1 min  — fast (BBC + Al Jazeera)
+    ("breaking_sa",       "scrape_sa_breaking",      60, True),   #  1 min  — fast (Daily Maverick + News24)
+    ("local_gov_news",    "scrape_gov_news",          60, True),   #  1 min  — fast (gov.za)
+    ("sa_local_news",     "scrape_sa_local",          60, True),   #  1 min  — fast (TimesLIVE + M&G)
+    ("sa_extra_news",     "scrape_sa_extra",          60, True),   #  1 min  — fast (The SA + eNCA + MyBroadband + EWN + IOL + SABC)
+    ("sa_x_accounts",     "scrape_sa_x",              60, True),   #  1 min  — fast (Nitter/X — govt + media)
+    ("gazette_gpw",       "scrape_gazette",         3600, True),   # 60 min  — govt gazette
+    ("policy_parliament", "scrape_parliament",      3600, True),   # 60 min  — parliament
+    ("jobs_dpsa",         "scrape_jobs",           86400, True),   # 24 hours — DPSA vacancies
+    ("auctions",          "scrape_auctions",        3600, False),  # 60 min  — special AI prompt
+    ("archive_cleanup",   "archive_old_posts",     86400, False),  # 24 hours
 ]
 
 _last_run: dict[str, float] = {}
@@ -244,10 +249,16 @@ Analyse this article and respond ONLY with valid JSON (no markdown, no ```json w
 RULES:
 1. The summary MUST be 3-5 sentences minimum with genuinely useful detail.
 2. The impact MUST be practical and specific to South Africans — never generic.
-3. actions_now and actions_later MUST each have 2-3 bullet points starting with •
+3. actions_now and actions_later MUST each have 2-3 bullet points starting with • and be PRACTICAL and INFORMATIONAL only. Do NOT instruct the reader to protest, boycott, petition, or take political sides. Say "monitor developments" not "demand your rights".
 4. Spiritual fields (verse, verse_text, verse_niv, insight, jw_topic) are OPTIONAL. Only include them if the article genuinely connects to deep human themes — death, war, suffering, injustice, disasters, morality, corruption. Do NOT force a verse onto political party elections, sports results, property listings, or routine economic news.
 5. If you do include a verse, it MUST be real and directly relevant. verse_text must be NWT; verse_niv must be the same verse in NIV.
 6. Return ONLY the JSON object. No extra text before or after.
+
+NEUTRALITY RULES — mandatory for every field:
+7. Use the official name of every government, organisation, and country at all times. NEVER substitute with subjective labels — do NOT write "regime", "terrorist group", "radical", "extremist", "illegal government", "freedom fighters", "occupation force", or "controversial" unless you are directly quoting a named person from the article.
+8. When a law, policy, cultural rule, or political outcome is contested (e.g. dress-code laws, election results, protest crackdowns, religious requirements in sport), describe ONLY the verifiable facts — what was decided, by whom, and what the stated effect is. Do NOT endorse or condemn either side.
+9. Do NOT characterise any leader, political party, or institution as good or bad. Stick strictly to what the article states happened — not what any party claims, implies, or alleges unless clearly attributed.
+10. The impact and actions fields must reflect objective, practical consequences for ordinary South Africans — not editorial opinion or moral judgment.
 
 Source: {source}
 Category: {category}
@@ -498,12 +509,65 @@ def scrape_sa_local() -> list:
 
     return results
 
+def scrape_sa_extra() -> list:
+    """
+    Extra SA news outlets: The South African, eNCA, Eyewitness News (EWN),
+    MyBroadband, IOL, and SABC News.
+    """
+    log.info("Scraping extra SA outlets (The South African, eNCA, EWN, MyBroadband, IOL, SABC)...")
+    results = []
+
+    # The South African — broad lifestyle/general SA coverage
+    body = http_get("https://www.thesouthafrican.com/feed/")
+    if body:
+        items = _parse_rss(body, limit=6)
+        results += [{**i, "source": "The South African", "category": "Local",
+                     "location_tier": "Country", "location_name": "South Africa"} for i in items]
+
+    # eNCA — DStv 403 TV channel breaking news
+    body = http_get("https://www.enca.com/rss.xml")
+    if body:
+        items = _parse_rss(body, limit=6)
+        results += [{**i, "source": "eNCA", "category": "Politics",
+                     "location_tier": "Country", "location_name": "South Africa"} for i in items]
+
+    # Eyewitness News (EWN) — 702/CapeTalk digital newsroom
+    body = http_get("https://ewn.co.za/RSS")
+    if body:
+        items = _parse_rss(body, limit=6)
+        results += [{**i, "source": "Eyewitness News", "category": "Politics",
+                     "location_tier": "Country", "location_name": "South Africa"} for i in items]
+
+    # MyBroadband — SA tech, telecoms, economy
+    body = http_get("https://mybroadband.co.za/news/feed")
+    if body:
+        items = _parse_rss(body, limit=5)
+        results += [{**i, "source": "MyBroadband", "category": "Economy",
+                     "location_tier": "Country", "location_name": "South Africa"} for i in items]
+
+    # IOL (Independent Online) — national SA news
+    body = http_get("https://www.iol.co.za/rss")
+    if body:
+        items = _parse_rss(body, limit=5)
+        results += [{**i, "source": "IOL", "category": "Local",
+                     "location_tier": "Country", "location_name": "South Africa"} for i in items]
+
+    # SABC News — public broadcaster
+    body = http_get("https://www.sabcnews.com/sabcnews/feed/")
+    if body:
+        items = _parse_rss(body, limit=5)
+        results += [{**i, "source": "SABC News", "category": "Politics",
+                     "location_tier": "Country", "location_name": "South Africa"} for i in items]
+
+    return results
+
 # ── X / Nitter (verified SA accounts) ─────────────────────────────────────────
 
 # Verified South African official/public interest accounts worth monitoring.
 # Nitter provides RSS feeds of Twitter/X timelines without needing API keys.
 # Multiple Nitter instances for resilience.
 _SA_ACCOUNTS = [
+    # ── Government & official ──────────────────────────────────────────────────
     ("PresidencyZA",   "Politics",  "Country",  "South Africa"),
     ("SAPoliceService","Crime",     "Country",  "South Africa"),
     ("GovernmentZA",   "Politics",  "Country",  "South Africa"),
@@ -514,6 +578,15 @@ _SA_ACCOUNTS = [
     ("TreasuryRSA",    "Economy",   "Country",  "South Africa"),
     ("HealthZA",       "Health",    "Country",  "South Africa"),
     ("DIRCO_ZA",       "Politics",  "Country",  "South Africa"),
+    # ── SA news outlets — catch breaking posts before RSS updates ─────────────
+    ("eNCA",           "Politics",  "Country",  "South Africa"),
+    ("TheSAnews",      "Local",     "Country",  "South Africa"),
+    ("mybroadband",    "Economy",   "Country",  "South Africa"),
+    ("EWN_Reporter",   "Politics",  "Country",  "South Africa"),
+    ("IOL",            "Local",     "Country",  "South Africa"),
+    ("SABCNews",       "Politics",  "Country",  "South Africa"),
+    ("dailymaverick",  "Politics",  "Country",  "South Africa"),
+    ("TimesLIVE",      "Local",     "Country",  "South Africa"),
 ]
 
 # Public Nitter instances — try in order until one works
@@ -666,12 +739,50 @@ def archive_old_posts() -> None:
     except Exception as exc:
         log.error("archive_old_posts failed: %s", exc)
 
+def _enrich_single(art: dict, stagger_idx: int = 0) -> tuple:
+    """Enrich one article using AI. Runs in a thread — uses a random available provider."""
+    time.sleep(stagger_idx * 0.8)  # stagger start so threads each hit a different AI provider
+    prompt = build_prompt(
+        art["title"],
+        art.get("full_context") or art.get("summary") or art["title"],
+        art["source"], art["category"]
+    )
+    ai = call_ai(prompt)
+    if not ai:
+        return (art["id"], False)
+    jw_link = _jw_link_for(art["category"], ai.get("jw_topic", ""))
+    payload = json.dumps({
+        "summary":          ai.get("summary", ""),
+        "impact":           ai.get("impact", ""),
+        "actions_now":      ai.get("actions_now", ""),
+        "actions_later":    ai.get("actions_later", ""),
+        "prophecy_verse":   ai.get("verse", ""),
+        "prophecy_text":    ai.get("verse_text", ""),
+        "prophecy_verse2":  ai.get("verse_niv", ""),
+        "prophecy_insight": ai.get("insight", ""),
+        "jw_link":          jw_link,
+    }).encode()
+    try:
+        req = urllib.request.Request(
+            f"{API_BASE_URL}/articles/{art['id']}/enrich",
+            data=payload, method="PATCH",
+            headers=_worker_headers(),
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            json.loads(resp.read())
+            log.info("✓ Enriched: '%s'", art["title"][:60])
+            return (art["id"], True)
+    except Exception as exc:
+        log.error("Enrich PATCH failed %s: %s", art["id"], exc)
+        return (art["id"], False)
+
+
 def enrich_old_articles() -> None:
-    """Retroactively enrich articles missing AI-generated fields (summary, impact, actions, prophecy)."""
+    """Retroactively enrich articles in parallel using all available AI providers."""
     log.info("Checking for articles needing enrichment...")
     try:
         req = urllib.request.Request(
-            f"{API_BASE_URL}/articles/needs-enrichment?limit=10",
+            f"{API_BASE_URL}/articles/needs-enrichment?limit=20",
             headers=_worker_headers(),
         )
         with urllib.request.urlopen(req, timeout=10) as resp:
@@ -682,39 +793,14 @@ def enrich_old_articles() -> None:
     if not articles:
         log.info("All articles fully enriched.")
         return
-    log.info("Enriching %d articles with missing AI fields...", len(articles))
-    for art in articles:
-        prompt = build_prompt(
-            art["title"],
-            art.get("full_context") or art.get("summary", ""),
-            art["source"], art["category"]
-        )
-        ai = call_ai(prompt)
-        time.sleep(AI_DELAY)
-        if not ai:
-            continue
-        jw_link = _jw_link_for(art["category"], ai.get("jw_topic", ""))
-        payload  = json.dumps({
-            "impact":           ai.get("impact", ""),
-            "actions_now":      ai.get("actions_now", ""),
-            "actions_later":    ai.get("actions_later", ""),
-            "prophecy_verse":   ai.get("verse", ""),
-            "prophecy_text":    ai.get("verse_text", ""),
-            "prophecy_verse2":  ai.get("verse_niv", ""),
-            "prophecy_insight": ai.get("insight", ""),
-            "jw_link":          jw_link,
-        }).encode()
-        try:
-            req2 = urllib.request.Request(
-                f"{API_BASE_URL}/articles/{art['id']}/enrich",
-                data=payload, method="PATCH",
-                headers=_worker_headers(),
-            )
-            with urllib.request.urlopen(req2, timeout=15) as resp2:
-                json.loads(resp2.read())
-                log.info("Enriched: '%s'", art["title"][:60])
-        except Exception as exc2:
-            log.error("Enrich PATCH failed %s: %s", art["id"], exc2)
+    log.info("Enriching %d articles in parallel (up to 5 threads)...", len(articles))
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = {
+            executor.submit(_enrich_single, art, idx): art
+            for idx, art in enumerate(articles)
+        }
+        success = sum(1 for f in as_completed(futures) if f.result()[1])
+    log.info("Enriched %d/%d articles", success, len(articles))
 
 
 def _has_enrichment_backlog() -> bool:
@@ -835,39 +921,107 @@ def process_and_submit(raw_articles: list) -> list:
 
     return new_ids
 
+
+def fast_submit(raw_articles: list) -> list:
+    """
+    Fast submission path: deduplicate + immediately store raw articles WITHOUT calling AI.
+    Enrichment (summary, impact, actions, verse) is handled by enrich_old_articles()
+    on the 3-minute schedule using all available AI providers in parallel.
+    Multi-outlet: if the same story is reported by more than one outlet, the new
+    source is added to the existing article's sources[] list — it is NOT a duplicate.
+    Returns list of new article IDs.
+    """
+    new_ids = []
+    now = datetime.now(timezone.utc)
+    for raw in raw_articles:
+        # Skip articles older than 7 days
+        pub = raw.get("published_at")
+        if pub:
+            try:
+                pub_dt = datetime.fromisoformat(pub)
+                if pub_dt.tzinfo is None:
+                    pub_dt = pub_dt.replace(tzinfo=timezone.utc)
+                if (now - pub_dt).total_seconds() / 86400 > 7:
+                    log.debug("SKIP (old) '%s'", raw["title"][:50])
+                    continue
+            except Exception:
+                pass
+
+        ch = content_hash(raw["title"], raw.get("raw_text", ""))
+        existing = article_exists(ch)
+        if existing:
+            # Multi-outlet coverage: add new source to sources[] — not a duplicate
+            if raw["source"] not in (existing.get("sources") or []):
+                log.info("SOURCE+ '%s' → '%s'", raw["source"], raw["title"][:50])
+                post_article({**raw, "content_hash": ch})
+            continue
+
+        # Preserve full raw text as full_context so the enrichment queue has context
+        raw["full_context"] = raw.get("raw_text", "")
+        raw["raw_text"]     = raw.get("raw_text", "")[:200]
+
+        # Image fallback chain
+        if not raw.get("image"):
+            raw["image"] = fetch_og_image(raw.get("url", ""))
+        if not raw.get("image"):
+            raw["image"] = CATEGORY_IMAGES.get(raw.get("category", ""), CATEGORY_IMAGES["default"])
+
+        # AI fields intentionally empty — enrichment queue fills them
+        raw.setdefault("summary",      "")
+        raw.setdefault("impact",       "")
+        raw.setdefault("actions_now",  "")
+        raw.setdefault("actions_later","")
+        raw.setdefault("prophecy",     {"verse": "", "text": "", "insight": ""})
+        raw.setdefault("jw_link",      "")
+        raw.setdefault("urgent",       False)
+
+        result = post_article(raw)
+        if result.get("status") == "created":
+            new_ids.append(result["id"])
+            log.info("FAST+ '%s'", raw["title"][:60])
+    return new_ids
+
 # ─── Scheduler ────────────────────────────────────────────────────────────────
 
 _SCRAPER_FNS = {
-    "scrape_bbc_world":   scrape_bbc_world,
-    "scrape_sa_breaking": scrape_sa_breaking,
-    "scrape_gov_news":    scrape_gov_news,
-    "scrape_sa_local":    scrape_sa_local,
-    "scrape_sa_x":        scrape_sa_x,
-    "scrape_gazette":     scrape_gazette,
-    "scrape_parliament":  scrape_parliament,
-    "scrape_jobs":        scrape_jobs,
-    "scrape_auctions":    scrape_auctions,
-    "archive_old_posts":  archive_old_posts,
+    "scrape_bbc_world":    scrape_bbc_world,
+    "scrape_sa_breaking":  scrape_sa_breaking,
+    "scrape_gov_news":     scrape_gov_news,
+    "scrape_sa_local":     scrape_sa_local,
+    "scrape_sa_extra":     scrape_sa_extra,
+    "scrape_sa_x":         scrape_sa_x,
+    "scrape_gazette":      scrape_gazette,
+    "scrape_parliament":   scrape_parliament,
+    "scrape_jobs":         scrape_jobs,
+    "scrape_auctions":     scrape_auctions,
+    "archive_old_posts":   archive_old_posts,
     "enrich_old_articles": enrich_old_articles,
 }
 
 def run_scheduler():
-    log.info("HUNGU Worker starting — enrichment-first strategy, checking every 60 s")
+    log.info("HUNGU Worker starting — fast scrapers every 60 s, parallel AI enrichment every 3 min")
     while True:
-        for name, fn_name, interval in SCHEDULE:
+        for name, fn_name, interval, fast_mode in SCHEDULE:
             if _should_run(name, interval):
-                # Enrichment-first: skip new scrapes if backlog exists
                 is_scraper = fn_name not in ("archive_old_posts", "enrich_old_articles")
-                if is_scraper and _has_enrichment_backlog():
-                    log.info("⏸ Skipping %s — enrichment backlog exists, enriching first", name)
-                    continue
-
                 fn = _SCRAPER_FNS[fn_name]
                 log.info("▶ Running: %s", name)
                 try:
                     if not is_scraper:
+                        # archive / enrich — run directly
                         fn()
+                    elif fast_mode:
+                        # Fast scrape: store raw immediately, AI enrichment handles the rest
+                        articles = fn()
+                        if articles:
+                            new_ids = fast_submit(articles)
+                            log.info("✓ %s — %d new articles", name, len(new_ids))
+                            if new_ids:
+                                dispatch_notifications(new_ids)
+                        else:
+                            log.info("✓ %s — no new items", name)
                     else:
+                        # Full AI inline (auctions only — special prompt)
                         articles = fn()
                         if articles:
                             new_ids = process_and_submit(articles)
@@ -875,11 +1029,11 @@ def run_scheduler():
                             if new_ids:
                                 dispatch_notifications(new_ids)
                         else:
-                            log.info("✓ %s — no items scraped", name)
+                            log.info("✓ %s — no items", name)
                     _mark_run(name)
                 except Exception as exc:
                     log.error("✗ %s failed: %s", name, exc)
-        time.sleep(60)  # check schedule every minute
+        time.sleep(30)  # check every 30 s for fast 60-s scrapers to stay responsive
 
 if __name__ == "__main__":
     run_scheduler()
