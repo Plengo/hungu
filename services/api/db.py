@@ -111,6 +111,11 @@ class Article(Base):
     actions_later = Column(Text)   # AI-generated future actions
     jw_link       = Column(Text)   # JW.org search URL for related Bible topic
 
+    # ── Engagement counters ──────────────────────────────────────────────────
+    likes    = Column(Integer, default=0, nullable=False, server_default="0")
+    dislikes = Column(Integer, default=0, nullable=False, server_default="0")
+    views    = Column(Integer, default=0, nullable=False, server_default="0")
+
     # ── Status flags ───────────────────────────────────────────────────────────
     urgent = Column(Boolean, default=False)
     status = Column(String(20), default="active")  # active | archived
