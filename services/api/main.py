@@ -310,7 +310,7 @@ async def record_view(article_id: str, db: Session = Depends(get_db)):
         db.commit()
 
 @app.post("/articles/{article_id}/react")
-async def react_article(article_id: str, reaction: str = Query(..., regex="^(like|dislike)$"), db: Session = Depends(get_db)):
+async def react_article(article_id: str, reaction: str = Query(..., pattern="^(like|dislike)$"), db: Session = Depends(get_db)):
     a = db.query(ArticleModel).filter(ArticleModel.id == article_id).first()
     if not a:
         raise HTTPException(status_code=404, detail="Article not found")
