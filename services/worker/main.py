@@ -81,6 +81,7 @@ SCHEDULE = [
     ("sa_local_news",     "scrape_sa_local",          60, True),   #  1 min  — fast (TimesLIVE + M&G)
     ("sa_extra_news",     "scrape_sa_extra",          60, True),   #  1 min  — fast (The SA + eNCA + MyBroadband + EWN + IOL + SABC)
     ("sa_x_accounts",     "scrape_sa_x",              60, True),   #  1 min  — fast (Nitter/X — govt + media)
+    ("community_news",    "scrape_community",      300, True),   #  5 min  — fast (GroundUp + community journalism)
     ("gazette_gpw",       "scrape_gazette",         3600, True),   # 60 min  — govt gazette
     ("policy_parliament", "scrape_parliament",      3600, True),   # 60 min  — parliament
     ("jobs_dpsa",         "scrape_jobs",           86400, True),   # 24 hours — DPSA vacancies
@@ -561,6 +562,47 @@ def scrape_sa_extra() -> list:
 
     return results
 
+def scrape_community() -> list:
+    """
+    Community & grassroots journalism sources:
+    GroundUp (SA community journalism), OFM (Free State community radio),
+    702/CapeTalk news feeds, and Carling Jazz community posts.
+    These often break stories before mainstream media.
+    Articles are stored with category='Community', location_tier='Suburb'|'City'.
+    """
+    log.info("Scraping community / grassroots news sources...")
+    results = []
+
+    # GroundUp — award-winning SA community journalism (townships, education, housing)
+    body = http_get("https://groundup.org.za/feed/")
+    if body:
+        items = _parse_rss(body, limit=6)
+        results += [{**i, "source": "GroundUp", "category": "Community",
+                     "location_tier": "Suburb", "location_name": "South Africa"} for i in items]
+
+    # OFM — Central SA community radio (Bloemfontein / Free State area)
+    body = http_get("https://www.ofm.co.za/category/news/feed/")
+    if body:
+        items = _parse_rss(body, limit=4)
+        results += [{**i, "source": "OFM News", "category": "Community",
+                     "location_tier": "City", "location_name": "Free State"} for i in items]
+
+    # 702 — Joburg talk radio (community/local Gauteng news)
+    body = http_get("https://www.702.co.za/feed/articles")
+    if body:
+        items = _parse_rss(body, limit=4)
+        results += [{**i, "source": "Radio 702", "category": "Community",
+                     "location_tier": "City", "location_name": "Johannesburg"} for i in items]
+
+    # CapeTalk — Cape Town community radio
+    body = http_get("https://www.capetalk.co.za/feed/articles")
+    if body:
+        items = _parse_rss(body, limit=4)
+        results += [{**i, "source": "CapeTalk", "category": "Community",
+                     "location_tier": "City", "location_name": "Cape Town"} for i in items]
+
+    return results
+
 # ── X / Nitter (verified SA accounts) ─────────────────────────────────────────
 
 # Verified South African official/public interest accounts worth monitoring.
@@ -989,6 +1031,7 @@ _SCRAPER_FNS = {
     "scrape_gov_news":     scrape_gov_news,
     "scrape_sa_local":     scrape_sa_local,
     "scrape_sa_extra":     scrape_sa_extra,
+    "scrape_community":    scrape_community,
     "scrape_sa_x":         scrape_sa_x,
     "scrape_gazette":      scrape_gazette,
     "scrape_parliament":   scrape_parliament,
