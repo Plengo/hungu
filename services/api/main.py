@@ -295,6 +295,26 @@ async def get_feed(
     articles = q.order_by(ArticleModel.urgent.desc(), ArticleModel.created_at.desc()).limit(limit).all()
     return [_to_out(a) for a in articles]
 
+@app.get("/search")
+async def search_articles(q: str, limit: int = 50, db: Session = Depends(get_db)):
+    if not q or not q.strip():
+        return {"articles": []}
+    
+    term = f"%{q.strip().lower()}%"
+    arts = (
+        db.query(ArticleModel)
+          .filter(
+              (ArticleModel.title.ilike(term)) |
+              (ArticleModel.summary.ilike(term)) |
+              (ArticleModel.impact.ilike(term)) |
+              (ArticleModel.full_context.ilike(term))
+          )
+          .order_by(ArticleModel.published_at.desc())
+          .limit(limit)
+          .all()
+    )
+    return {"articles": [_to_out(a) for a in arts]}
+
 @app.get("/article/{article_id}")
 async def get_article(article_id: str, db: Session = Depends(get_db)):
     a = db.query(ArticleModel).filter(ArticleModel.id == article_id).first()
