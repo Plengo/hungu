@@ -264,7 +264,7 @@
     <!-- Bottom nav -->
     <nav class="fixed bottom-0 left-0 w-full bg-white/90 backdrop-blur border-t border-slate-100 flex flex-col z-50 shadow-2xl">
       <div class="flex justify-around py-3">
-        <button onclick="showView('feed')" class="flex flex-col items-center gap-0.5 text-slate-400 press">
+        <button onclick="showView('search')" class="flex flex-col items-center gap-0.5 text-slate-400 press">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
           <span class="text-[9px] font-bold uppercase">Search</span>
         </button>
@@ -414,6 +414,32 @@
       <!-- Injected by JS -->
     </main>
   </div><!-- /view-saved -->
+
+  <!-- ── SEARCH ─────────────────────────────────────────────────────────────── -->
+  <div id="view-search" class="view hidden flex flex-col h-screen bg-slate-50">
+    <header class="px-6 pt-10 pb-4 bg-[#87ceeb] flex flex-col gap-4">
+      <button onclick="showView('feed')" class="text-white/80 text-sm font-semibold flex items-center gap-1 press w-fit">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+        Back
+      </button>
+      <div class="relative">
+        <input type="text" id="search-input" placeholder="Search news, topics, keywords..." 
+          class="w-full bg-white/20 text-white placeholder-white/70 border border-white/30 rounded-2xl px-5 py-3.5 text-base font-semibold outline-none focus:bg-white focus:text-slate-900 focus:placeholder-slate-400 transition-all shadow-inner"
+          onkeydown="if(event.key === 'Enter') executeSearch()"/>
+        <button onclick="executeSearch()" class="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-white text-[#87ceeb] rounded-xl font-bold text-xs press">
+          SEARCH
+        </button>
+      </div>
+    </header>
+    <div id="search-status" class="px-6 pt-4 text-xs font-bold text-slate-400 uppercase tracking-widest hidden">Results</div>
+    <main id="search-list" class="flex-1 overflow-y-auto scroll-hide px-4 pt-2 pb-24 space-y-4 fade-in">
+      <!-- Injected by JS -->
+      <div class="flex flex-col items-center justify-center h-full text-slate-400 opacity-50 pb-20">
+        <svg class="w-16 h-16 mb-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <p class="font-bold">Find breaking news</p>
+      </div>
+    </main>
+  </div><!-- /view-search -->
 
 
   <!-- ── PROFILE ────────────────────────────────────────────────────────────── -->
@@ -1228,7 +1254,7 @@ function openArticle(id) {
           ? `<a href="${a.url}" target="_blank" rel="noopener noreferrer" class="text-[10px] text-[#4a90a4] font-bold hover:underline">${a.source}</a>`
           : `<span class="text-[10px] text-slate-600 font-semibold">${a.source}</span>`
         }<span class="text-[10px] text-slate-400"> · ${a.date}</span>
-        <span class="text-[10px] text-slate-400 ml-auto">👁 ${_fmtCount(a.views)}</span>
+        <span class="text-[10px] text-slate-400 ml-auto">👁 ${_fmtCount(a.views)} views</span>
       </div>
       <!-- Title -->
       <h1 class="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 leading-tight mb-4">${a.title}</h1>
@@ -1710,7 +1736,8 @@ function toggleReading() {
     const voice = getSpeakVoice();
     if (voice) utt.voice = voice;
     utt.rate = 0.9; utt.pitch = 1.0; utt.volume = 1.0;
-    utt.onend = () => { state.reading = false; document.getElementById('read-label').textContent = 'Listen to news'; document.getElementById('read-icon').innerHTML = '<path d="M8 5v14l11-7z"/>'; };
+    utt.onend = () => { state.reading = false; document.getElementById('read-label').textContent = 'Listen to news'; document.getElementById('read-icon').innerHTML = '<path d="M8 5v14l11-7z"/>';
+    };
     window.speechSynthesis.speak(utt);
     state.reading = true;
   }
@@ -1792,7 +1819,6 @@ async function adminToggleUrgent(id, btn) {
   btn.textContent = data.urgent ? '🔴 URGENT' : '⚪ urgent';
 }
 
-// ─── Init ─────────────────────────────────────────────────────────────────────
 // ─── Post Breaking News (admin) ───────────────────────────────────────────────
 async function postBreakingNews() {
   const title   = document.getElementById('bn-title').value.trim();
