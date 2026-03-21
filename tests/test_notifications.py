@@ -76,7 +76,7 @@ class TestNotificationDispatch:
                         if m["user_id"] == device_user["user_id"]]
         assert any("category:Economy" in m["matched_on"] for m in user_matches)
 
-    def test_dispatch_urgent_match(self, client, device_user, auth_headers, worker_headers):
+    def test_dispatch_urgent_match(self, client, device_user, auth_headers, worker_headers, admin_headers):
         client.post(f"/user/{device_user['user_id']}/subscription",
                     json=_sub_payload(keywords=[], categories=[], notify_urgent=True, location_tiers=[]),
                     headers=auth_headers)
@@ -85,6 +85,12 @@ class TestNotificationDispatch:
                                              "urgent": True,
                                              "raw_text": "urgent content"}),
                           headers=worker_headers).json()
+        
+        # Mark as urgent via admin endpoint, since worker POST ignores the urgent flag
+        client.patch(f"/admin/articles/{art['id']}/urgent",
+                     json={"urgent": True},
+                     headers=admin_headers)
+
         resp = client.post(
             "/internal/notifications/dispatch",
             json={"article_ids": [art["id"]]},
