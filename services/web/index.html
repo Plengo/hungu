@@ -188,14 +188,26 @@
     <!-- Sticky header -->
     <header class="sticky top-0 z-40 flex flex-col">
       <!-- Breaking news ticker — hidden when no urgent articles -->
-      <div id="breaking-bar" class="hidden bg-red-600 text-white flex items-stretch" style="min-height:34px">
-        <div class="flex-shrink-0 bg-red-800 flex items-center px-3">
-          <span class="text-[10px] font-black tracking-widest uppercase whitespace-nowrap animate-pulse">🔴 BREAKING</span>
+      <div id="breaking-bar" class="hidden bg-red-600 text-white flex flex-col items-stretch" style="min-height:34px">
+        <div class="flex items-stretch">
+          <div class="flex-shrink-0 bg-red-800 flex items-center px-3">
+            <span class="text-[10px] font-black tracking-widest uppercase whitespace-nowrap animate-pulse">🔴 BREAKING</span>
+          </div>
+          <div class="flex-1 overflow-hidden flex items-center">
+            <div id="breaking-ticker" class="whitespace-nowrap text-sm font-semibold px-3 ticker-scroll"></div>
+          </div>
+          <button onclick="document.getElementById('breaking-bar').classList.add('hidden')" class="flex-shrink-0 px-3 text-white/70 hover:text-white text-xl leading-none">×</button>
         </div>
-        <div class="flex-1 overflow-hidden flex items-center">
-          <div id="breaking-ticker" class="whitespace-nowrap text-sm font-semibold px-3 ticker-scroll"></div>
+        <!-- Weather, date, and time widget -->
+        <div id="weather-bar" class="flex items-center gap-3 px-3 py-1 bg-red-700/80 text-white text-xs font-semibold rounded-b-2xl" style="min-height:28px">
+          <span id="weather-icon">☀️</span>
+          <span id="weather-temp">--°C</span>
+          <span id="weather-desc">Loading weather…</span>
+          <span class="ml-auto flex items-center gap-2">
+            <span id="weather-date">--</span>
+            <span id="weather-time">--:--</span>
+          </span>
         </div>
-        <button onclick="document.getElementById('breaking-bar').classList.add('hidden')" class="flex-shrink-0 px-3 text-white/70 hover:text-white text-xl leading-none">×</button>
       </div>
       <!-- Main header bar -->
       <div class="bg-[#87ceeb] px-4 pt-6 pb-4 flex justify-between items-center">
@@ -1014,8 +1026,13 @@ function adCard() {
   const id = 'ad-' + Math.random().toString(36).slice(2, 8);
   if (AD_READY && !IS_LOCAL) {
     setTimeout(() => {
-      try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch(e) {}
-    }, 100);
+      try {
+        const ins = document.getElementById(id);
+        if (ins && window.adsbygoogle && Array.isArray(window.adsbygoogle)) {
+          window.adsbygoogle.push({});
+        }
+      } catch(e) {}
+    }, 300);
     return `<div class="bg-white mb-2 px-4 py-3">
       <p class="text-[9px] font-bold uppercase text-slate-400 tracking-widest mb-2">Advertisement</p>
       <ins class="adsbygoogle" style="display:block" data-ad-client="${AD_CLIENT}" data-ad-slot="${AD_SLOT}" data-ad-format="fluid" data-full-width-responsive="true" id="${id}"></ins>
@@ -1085,7 +1102,26 @@ function newsCard(raw) {
   </article>`;
 }
 
-// ─── Article Detail ────────────────────────────────────────────────────────────
+// ─── Swipe-to-Go-Back Navigation ──────────────────────────────────────────────
+let _swipeStartX = null;
+function _addSwipeBack(el, onBack) {
+  if (!el) return;
+  el.ontouchstart = e => { if (e.touches.length === 1) _swipeStartX = e.touches[0].clientX; };
+  el.ontouchend = e => {
+    if (_swipeStartX === null) return;
+    const dx = e.changedTouches[0].clientX - _swipeStartX;
+    if (dx > 60) { onBack && onBack(); }
+    _swipeStartX = null;
+  };
+}
+
+// Add swipe-back to detail and story views after render
+function _initSwipeBack() {
+  const detail = document.getElementById('view-detail');
+  if (detail) _addSwipeBack(detail, () => showView('feed'));
+  const story = document.getElementById('story-viewer');
+  if (story) _addSwipeBack(story, closeStory);
+}
 function _sectionImpact(a) {
   const imp = (a.impact || '').trim();
   if (!imp || imp === 'Impact analysis pending.') return '';
@@ -1223,6 +1259,7 @@ function openArticle(id) {
 
       ${a.url ? `<p class="text-xs text-slate-400 text-center mb-4"><a href="${a.url}" target="_blank" rel="noopener noreferrer" class="underline underline-offset-2">📎 Read original source</a></p>` : ''}
     </div>`;
+  setTimeout(_initSwipeBack, 100);
   showView('detail');
 }
 
@@ -1251,7 +1288,15 @@ function toggleSave(id) {
     const is = state.saved.includes(sid);
     if (svg) { svg.setAttribute('fill', is ? 'currentColor' : 'none'); svg.classList.toggle('text-[#4a90a4]', is); svg.classList.toggle('text-slate-500', !is); }
   }
-  if (state.currentView === 'feed') renderFeed();
+  if (state.currentView === 'feed') {
+    renderFeed();
+    setTimeout(() => {
+      // Force AdSense to re-render ads on view change
+      document.querySelectorAll('ins.adsbygoogle').forEach(ins => {
+        try { if (window.adsbygoogle && Array.isArray(window.adsbygoogle)) window.adsbygoogle.push({}); } catch(e) {}
+      });
+    }, 500);
+  }
 }
 
 function shareArticle(id) {
@@ -1793,28 +1838,41 @@ let _storyTimer = null;
 
 // ─── Google Places autocomplete ───────────────────────────────────────────────
 function _initPlacesAutocomplete() {
+
   // SA-biased autocomplete for (sublocality/neighbourhood/city/province) inputs
   const opts = { componentRestrictions: { country: 'za' }, types: ['geocode'] };
 
   // Helper: attach autocomplete + extract address parts into callback
   function _attachAC(inputId, onPlace) {
     const el = document.getElementById(inputId);
-    if (!el || !window.google?.maps?.places) return;
-    const ac = new google.maps.places.Autocomplete(el, opts);
-    ac.addListener('place_changed', () => {
-      const place = ac.getPlace();
-      if (!place.address_components) return;
-      const get = types => {
-        const c = place.address_components.find(c => types.some(t => c.types.includes(t)));
-        return c ? c.long_name : '';
-      };
-      onPlace({
-        suburb:   get(['sublocality_level_1','neighborhood','sublocality','locality']),
-        city:     get(['locality','administrative_area_level_2']),
-        province: get(['administrative_area_level_1']),
-        country:  get(['country']),
-      });
-    });
+    if (!el) return;
+    // Defensive: wait for Google API, retry if not loaded
+    function tryAttach(retries = 0) {
+      if (window.google?.maps?.places) {
+        try {
+          const ac = new google.maps.places.Autocomplete(el, opts);
+          ac.addListener('place_changed', () => {
+            const place = ac.getPlace();
+            if (!place.address_components) return;
+            const get = types => {
+              const c = place.address_components.find(c => types.some(t => c.types.includes(t)));
+              return c ? c.long_name : '';
+            };
+            onPlace({
+              suburb:   get(['sublocality_level_1','neighborhood','sublocality','locality']),
+              city:     get(['locality','administrative_area_level_2']),
+              province: get(['administrative_area_level_1']),
+              country:  get(['country']),
+            });
+          });
+        } catch (e) {
+          // If Google API is buggy, fallback to manual input
+        }
+      } else if (retries < 10) {
+        setTimeout(() => tryAttach(retries + 1), 300);
+      }
+    }
+    tryAttach();
   }
 
   // Onboarding inputs
@@ -1845,13 +1903,25 @@ function _initPlacesAutocomplete() {
 async function loadStories() {
   const suburb = (state.user.suburb || '').trim();
   const city   = (state.user.city   || '').toLowerCase();
+  const province = (state.user.province || '').toLowerCase();
 
-  // Fetch community / social media articles first
   let articles = [];
   try {
     if (suburb) {
       const r = await fetch(`${API_URL}/feed?category=Community&location=${encodeURIComponent(suburb)}&limit=30`);
       if (r.ok) articles = await r.json();
+    }
+  } catch(e) {}
+  try {
+    if (articles.length < 3 && city) {
+      const r = await fetch(`${API_URL}/feed?category=Community&location=${encodeURIComponent(city)}&limit=30`);
+      if (r.ok) { const all = await r.json(); articles = [...articles, ...all]; }
+    }
+  } catch(e) {}
+  try {
+    if (articles.length < 3 && province) {
+      const r = await fetch(`${API_URL}/feed?category=Community&location=${encodeURIComponent(province)}&limit=30`);
+      if (r.ok) { const all = await r.json(); articles = [...articles, ...all]; }
     }
   } catch(e) {}
   try {
@@ -1870,14 +1940,15 @@ async function loadStories() {
 
   if (!articles.length) return;
 
-  // Sort: suburb first → city → SA → global
+  // Sort: suburb first → city → province → SA → global
   articles.sort((a, b) => {
     const sc = x => {
       const ln = (x.location_name || '').toLowerCase();
       if (suburb && (ln === suburb || ln.includes(suburb))) return 0;
       if (city   && (ln === city   || ln.includes(city)))   return 1;
-      if ((x.location_tier || '') !== 'Global')              return 2;
-      return 3;
+      if (province && (ln === province || ln.includes(province))) return 2;
+      if ((x.location_tier || '') !== 'Global')              return 3;
+      return 4;
     };
     return sc(a) - sc(b);
   });
@@ -1937,7 +2008,7 @@ function openStory(idx) {
   document.body.style.overflow = 'hidden';
   _renderCurrentStory();
   _storyStartProgress();
-  _storyAddSwipe(document.getElementById('story-viewer'));
+  setTimeout(_initSwipeBack, 100);
 }
 
 function closeStory() {
@@ -2084,6 +2155,61 @@ document.addEventListener('DOMContentLoaded', () => {
   loadBreakingTicker();
 });
 
+// ─── Weather, Date, and Time Widget ─────────────────────────────────────────
+async function updateWeatherWidget() {
+  const elIcon = document.getElementById('weather-icon');
+  const elTemp = document.getElementById('weather-temp');
+  const elDesc = document.getElementById('weather-desc');
+  const elDate = document.getElementById('weather-date');
+  const elTime = document.getElementById('weather-time');
+  // Date and time
+  const now = new Date();
+  elDate.textContent = now.toLocaleDateString('en-ZA', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+  elTime.textContent = now.toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' });
+  // Weather (Open-Meteo, no API key needed)
+  let lat = -25.7461, lon = 28.1881; // Default: Pretoria
+  try {
+    // Try to get user's city/province for better location
+    const city = state.user.city || '';
+    const province = state.user.province || '';
+    let loc = city || province || '';
+    if (loc) {
+      // Use Nominatim to geocode city/province
+      const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(loc + ', South Africa')}`);
+      const data = await resp.json();
+      if (data && data[0]) {
+        lat = parseFloat(data[0].lat); lon = parseFloat(data[0].lon);
+      }
+    }
+  } catch {}
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`;
+    const resp = await fetch(url);
+    const data = await resp.json();
+    if (data && data.current_weather) {
+      const w = data.current_weather;
+      elTemp.textContent = Math.round(w.temperature) + '°C';
+      // Weather icon mapping
+      const icons = { 0:'☀️', 1:'🌤️', 2:'⛅', 3:'☁️', 45:'🌫️', 48:'🌫️', 51:'🌦️', 53:'🌦️', 55:'🌦️', 56:'🌧️', 57:'🌧️', 61:'🌦️', 63:'🌧️', 65:'🌧️', 66:'🌧️', 67:'🌧️', 71:'🌨️', 73:'🌨️', 75:'🌨️', 77:'🌨️', 80:'🌧️', 81:'🌧️', 82:'🌧️', 85:'❄️', 86:'❄️', 95:'⛈️', 96:'⛈️', 99:'⛈️' };
+      elIcon.textContent = icons[w.weathercode] || '☀️';
+      // Description
+      const descs = { 0:'Clear', 1:'Mainly clear', 2:'Partly cloudy', 3:'Overcast', 45:'Fog', 48:'Depositing rime fog', 51:'Light drizzle', 53:'Drizzle', 55:'Dense drizzle', 56:'Freezing drizzle', 57:'Freezing dense drizzle', 61:'Slight rain', 63:'Rain', 65:'Heavy rain', 66:'Freezing rain', 67:'Freezing heavy rain', 71:'Slight snow', 73:'Snow', 75:'Heavy snow', 77:'Snow grains', 80:'Rain showers', 81:'Heavy rain showers', 82:'Violent rain showers', 85:'Slight snow showers', 86:'Heavy snow showers', 95:'Thunderstorm', 96:'Thunderstorm w/ hail', 99:'Thunderstorm w/ hail' };
+      elDesc.textContent = descs[w.weathercode] || 'Weather';
+    } else {
+      elTemp.textContent = '--°C';
+      elIcon.textContent = '☀️';
+      elDesc.textContent = 'Weather unavailable';
+    }
+  } catch {
+    elTemp.textContent = '--°C';
+    elIcon.textContent = '☀️';
+    elDesc.textContent = 'Weather unavailable';
+  }
+}
+
+// Update every minute
+setInterval(updateWeatherWidget, 60000);
+document.addEventListener('DOMContentLoaded', updateWeatherWidget);
 </script>
 
 </body>
