@@ -2181,6 +2181,49 @@ document.addEventListener('DOMContentLoaded', () => {
   loadBreakingTicker();
 });
 
+// ─── Search ─────────────────────────────────────────────────────────────────
+let _searchAbort = null;
+async function executeSearch() {
+  const q = document.getElementById('search-input').value.trim();
+  const list = document.getElementById('search-list');
+  const status = document.getElementById('search-status');
+  
+  if (!q) {
+    status.classList.add('hidden');
+    list.innerHTML = `
+      <div class="flex flex-col items-center justify-center h-full text-slate-400 opacity-50 pb-20">
+        <svg class="w-16 h-16 mb-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <p class="font-bold">Find breaking news</p>
+      </div>`;
+    return;
+  }
+  
+  if (_searchAbort) _searchAbort.abort();
+  _searchAbort = new AbortController();
+  
+  list.innerHTML = `<div class="p-8 text-center text-slate-400 font-bold text-sm animate-pulse">Searching for "${q}"...</div>`;
+  status.classList.remove('hidden');
+  
+  try {
+    const res = await fetch(`${API_URL}/search?q=${encodeURIComponent(q)}`, { signal: _searchAbort.signal });
+    if (!res.ok) throw new Error('Search failed');
+    const data = await res.json();
+    
+    if (!data.articles || data.articles.length === 0) {
+      list.innerHTML = `<div class="p-8 text-center text-slate-400 font-bold text-sm">No results found for "${q}"</div>`;
+      status.textContent = "0 Results";
+      return;
+    }
+    
+    status.textContent = `${data.articles.length} Results`;
+    list.innerHTML = data.articles.map(a => _buildArticleCard(a)).join('');
+  } catch (err) {
+    if (err.name !== 'AbortError') {
+      list.innerHTML = `<div class="p-8 text-center text-red-400 font-bold text-sm">Error searching. Please try again.</div>`;
+    }
+  }
+}
+
 // ─── Weather, Date, and Time Widget ─────────────────────────────────────────
 let _cachedCoords = null;
 
