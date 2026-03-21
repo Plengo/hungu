@@ -186,29 +186,29 @@
   <div id="view-feed" class="view hidden flex flex-col min-h-screen bg-[#f0f2f5]">
 
     <!-- Sticky header -->
-    <header class="sticky top-0 z-40 flex flex-col">
+    <header class="sticky top-0 z-40 flex flex-col shadow-sm">
       <!-- Breaking news ticker — hidden when no urgent articles -->
-      <div id="breaking-bar" class="hidden bg-red-600 text-white flex flex-col items-stretch" style="min-height:34px">
-        <div class="flex items-stretch">
-          <div class="flex-shrink-0 bg-red-800 flex items-center px-3">
-            <span class="text-[10px] font-black tracking-widest uppercase whitespace-nowrap animate-pulse">🔴 BREAKING</span>
-          </div>
-          <div class="flex-1 overflow-hidden flex items-center">
-            <div id="breaking-ticker" class="whitespace-nowrap text-sm font-semibold px-3 ticker-scroll"></div>
-          </div>
-          <button onclick="document.getElementById('breaking-bar').classList.add('hidden')" class="flex-shrink-0 px-3 text-white/70 hover:text-white text-xl leading-none">×</button>
+      <div id="breaking-bar" class="hidden bg-red-600 text-white flex items-stretch" style="min-height:34px">
+        <div class="flex-shrink-0 bg-red-800 flex items-center px-3">
+          <span class="text-[10px] font-black tracking-widest uppercase whitespace-nowrap animate-pulse">🔴 BREAKING</span>
         </div>
-        <!-- Weather, date, and time widget -->
-        <div id="weather-bar" class="flex items-center gap-3 px-3 py-1 bg-red-700/80 text-white text-xs font-semibold rounded-b-2xl" style="min-height:28px">
-          <span id="weather-icon">☀️</span>
-          <span id="weather-temp">--°C</span>
-          <span id="weather-desc">Loading weather…</span>
-          <span class="ml-auto flex items-center gap-2">
-            <span id="weather-date">--</span>
-            <span id="weather-time">--:--</span>
-          </span>
+        <div class="flex-1 overflow-hidden flex items-center">
+          <div id="breaking-ticker" class="whitespace-nowrap text-sm font-semibold px-3 ticker-scroll"></div>
         </div>
+        <button onclick="document.getElementById('breaking-bar').classList.add('hidden')" class="flex-shrink-0 px-3 text-white/70 hover:text-white text-xl leading-none">×</button>
       </div>
+      
+      <!-- Weather, date, and time widget -->
+      <div id="weather-bar" class="flex items-center gap-3 px-4 py-1.5 bg-slate-800 text-slate-100 text-xs font-semibold z-50">
+        <span id="weather-icon">☀️</span>
+        <span id="weather-temp">--°C</span>
+        <span id="weather-desc">Loading weather…</span>
+        <span class="ml-auto flex items-center gap-2 text-slate-300">
+          <span id="weather-date">--</span>
+          <span id="weather-time">--:--</span>
+        </span>
+      </div>
+
       <!-- Main header bar -->
       <div class="bg-[#87ceeb] px-4 pt-6 pb-4 flex justify-between items-center">
       <div class="flex items-center gap-2 cursor-pointer press" onclick="showView('feed')">
@@ -2156,6 +2156,8 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ─── Weather, Date, and Time Widget ─────────────────────────────────────────
+let _cachedCoords = null;
+
 async function updateWeatherWidget() {
   const elIcon = document.getElementById('weather-icon');
   const elTemp = document.getElementById('weather-temp');
@@ -2168,20 +2170,29 @@ async function updateWeatherWidget() {
   elTime.textContent = now.toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' });
   // Weather (Open-Meteo, no API key needed)
   let lat = -25.7461, lon = 28.1881; // Default: Pretoria
-  try {
-    // Try to get user's city/province for better location
-    const city = state.user.city || '';
-    const province = state.user.province || '';
-    let loc = city || province || '';
-    if (loc) {
-      // Use Nominatim to geocode city/province
-      const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(loc + ', South Africa')}`);
-      const data = await resp.json();
-      if (data && data[0]) {
-        lat = parseFloat(data[0].lat); lon = parseFloat(data[0].lon);
+  
+  if (_cachedCoords) {
+    lat = _cachedCoords.lat;
+    lon = _cachedCoords.lon;
+  } else {
+    try {
+      // Try to get user's city/province for better location
+      const city = state.user?.city || '';
+      const province = state.user?.province || '';
+      let loc = city || province || '';
+      if (loc) {
+        // Use Nominatim to geocode city/province
+        const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(loc + ', South Africa')}`);
+        const data = await resp.json();
+        if (data && data[0]) {
+          lat = parseFloat(data[0].lat); 
+          lon = parseFloat(data[0].lon);
+          _cachedCoords = { lat, lon };
+        }
       }
-    }
-  } catch {}
+    } catch {}
+  }
+  
   try {
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`;
     const resp = await fetch(url);
