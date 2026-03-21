@@ -2216,7 +2216,7 @@ async function executeSearch() {
     }
     
     status.textContent = `${data.articles.length} Results`;
-    list.innerHTML = data.articles.map(a => _buildArticleCard(a)).join('');
+    list.innerHTML = data.articles.map(a => newsCard(a)).join('');
   } catch (err) {
     if (err.name !== 'AbortError') {
       list.innerHTML = `<div class="p-8 text-center text-red-400 font-bold text-sm">Error searching. Please try again.</div>`;
