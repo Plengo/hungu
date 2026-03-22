@@ -1089,6 +1089,33 @@ function adCard() {
   </div>`;
 }
 
+function adStoryCard() {
+  const id = 'ad-story-' + Math.random().toString(36).slice(2, 8);
+  if (AD_READY && !IS_LOCAL) {
+    setTimeout(() => {
+      try {
+        const ins = document.getElementById(id);
+        if (ins && window.adsbygoogle && Array.isArray(window.adsbygoogle)) {
+          window.adsbygoogle.push({});
+        }
+      } catch(e) {}
+    }, 300);
+    return `<div class="flex-shrink-0" style="width:130px">
+      <div class="relative rounded-2xl overflow-hidden border-[3px] border-slate-200 shadow-sm bg-slate-50 flex flex-col items-center justify-center" style="width:130px;height:170px;">
+        <p class="absolute top-1.5 left-0 right-0 text-[8px] font-black uppercase text-slate-400 text-center tracking-widest z-10">Advertisement</p>
+        <ins class="adsbygoogle" style="display:inline-block;width:130px;height:170px" data-ad-client="${AD_CLIENT}" data-ad-slot="${AD_SLOT}" data-ad-format="rectangle" id="${id}"></ins>
+      </div>
+    </div>`;
+  }
+  return `<div class="flex-shrink-0" style="width:130px">
+    <div class="relative rounded-2xl overflow-hidden border-[3px] border-dashed border-slate-200 shadow-sm bg-slate-50 flex flex-col items-center justify-center gap-1" style="width:130px;height:170px;">
+      <p class="absolute top-1.5 left-0 right-0 text-[8px] font-black uppercase text-slate-400 text-center tracking-widest">Ad</p>
+      <span class="text-xl">📢</span>
+      <p class="text-[9px] font-bold text-slate-400">AdSense</p>
+    </div>
+  </div>`;
+}
+
 function newsCard(raw) {
   const a = norm(raw);
   const isSaved = state.saved.includes(a.id) || state.saved.includes(Number(a.id));
@@ -2044,7 +2071,8 @@ function _renderStoriesStrip() {
     (a.location_name || '').toLowerCase().includes(suburb.toLowerCase()));
   if (sub) sub.textContent = hasLocal ? `📍 ${suburb}` : 'SA & World';
 
-  row.innerHTML = _stories.map((a, idx) => {
+  const cards = [];
+  _stories.forEach((a, idx) => {
     const img = a.image || CATEGORY_IMAGES[a.category] || CATEGORY_IMAGES.default;
     const label = (a.title || '').slice(0, 36) + (a.title && a.title.length > 36 ? '…' : '');
     const isLocal = suburb && (a.location_name || '').toLowerCase().includes(suburb.toLowerCase());
@@ -2057,7 +2085,8 @@ function _renderStoriesStrip() {
     const src = a.source || '';
     // Show category icon for story types
     const catIcon = CAT_ICONS[a.category] ? `<span class="absolute top-1.5 left-1.5 bg-white/80 text-black text-[13px] font-black w-5 h-5 rounded-full flex items-center justify-center leading-none shadow">${CAT_ICONS[a.category]}</span>` : '';
-    return `<button onclick="openStory(${idx})" class="flex-shrink-0 press" style="width:130px">
+    
+    cards.push(`<button onclick="openStory(${idx})" class="flex-shrink-0 press" style="width:130px">
       <div class="relative rounded-2xl overflow-hidden border-[3px] shadow-sm" style="width:130px;height:170px;${ring}">
         <img src="${img}" class="w-full h-full object-cover" loading="lazy" onerror="this.src='${CATEGORY_IMAGES.default}'"/>
         <div class="absolute inset-0" style="background:linear-gradient(0deg,rgba(0,0,0,0.75) 0%,rgba(0,0,0,0.1) 50%,rgba(0,0,0,0.3) 100%)"></div>
@@ -2068,8 +2097,15 @@ function _renderStoriesStrip() {
           <p class="text-[11px] font-bold text-white leading-tight" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${label}</p>
         </div>
       </div>
-    </button>`;
-  }).join('');
+    </button>`);
+
+    // Insert AdSense card every 3rd story
+    if ((idx + 1) % 3 === 0) {
+      cards.push(adStoryCard());
+    }
+  });
+
+  row.innerHTML = cards.join('');
   strip.classList.remove('hidden');
 }
 
