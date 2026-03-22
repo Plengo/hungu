@@ -1973,28 +1973,25 @@ async function loadStories() {
   const province = (state.user.province || '').toLowerCase();
 
   let articles = [];
+  const storyCats = ['Community', 'Entertainment', 'Exciting', 'Funny', 'Wonderful', 'Rare'];
+
+  // Parallel fetch for all story-type categories
   try {
-    // Fetch general feed (no category restriction) to find all "story" types locally
+    const responses = await Promise.all(storyCats.map(cat =>
+      fetch(`${API_URL}/feed?category=${cat}&limit=10`).catch(() => null)
+    ));
+    for (const r of responses) {
+      if (r && r.ok) {
+        const all = await r.json();
+        articles = [...articles, ...all];
+      }
+    }
+  } catch(e) {}
+
+  // Also fetch recent location-specific items (might be unverified)
+  try {
     if (suburb) {
-      const r = await fetch(`${API_URL}/feed?location=${encodeURIComponent(suburb)}&limit=50`);
-      if (r.ok) articles = await r.json();
-    }
-  } catch(e) {}
-  try {
-    if (articles.length < 5 && city) {
-      const r = await fetch(`${API_URL}/feed?location=${encodeURIComponent(city)}&limit=50`);
-      if (r.ok) { const all = await r.json(); articles = [...articles, ...all]; }
-    }
-  } catch(e) {}
-  try {
-    if (articles.length < 5 && province) {
-      const r = await fetch(`${API_URL}/feed?location=${encodeURIComponent(province)}&limit=50`);
-      if (r.ok) { const all = await r.json(); articles = [...articles, ...all]; }
-    }
-  } catch(e) {}
-  try {
-    if (articles.length < 5) {
-      const r = await fetch(`${API_URL}/feed?limit=60`);
+      const r = await fetch(`${API_URL}/feed?location=${encodeURIComponent(suburb)}&limit=20`);
       if (r.ok) { const all = await r.json(); articles = [...articles, ...all]; }
     }
   } catch(e) {}
