@@ -371,6 +371,11 @@
 
         <p class="text-xs text-slate-400 pt-2">Last updated: March 2026 &nbsp;&bull;&nbsp; Contact: <a href="mailto:info@hungu.co.za" class="underline">info@hungu.co.za</a></p>
       </div>
+
+      <div id="disclaimer-actions" class="mt-8 flex flex-col gap-3 hidden">
+        <button onclick="acceptDisclaimer()" class="w-full bg-[#4a90a4] text-white py-4 rounded-xl font-bold text-base press shadow-lg">I Agree & Continue</button>
+        <button onclick="exitApp()" class="w-full bg-slate-100 text-slate-500 py-3 rounded-xl font-bold text-sm press">Exit</button>
+      </div>
     </div>
   </div>
 
@@ -1593,8 +1598,21 @@ function signIn(provider) {
   alert(`${provider} sign-in coming soon.`);
 }
 
-function showDisclaimer() {
+function showDisclaimer(isForced = false) {
   const m = document.getElementById('modal-disclaimer');
+  const closeBtn = m.querySelector('button[onclick="hideDisclaimer()"]');
+  const actions = document.getElementById('disclaimer-actions');
+  
+  if (isForced) {
+    if (closeBtn) closeBtn.classList.add('hidden');
+    if (actions) actions.classList.remove('hidden');
+    m.onclick = null; // Disable clicking outside to close
+  } else {
+    if (closeBtn) closeBtn.classList.remove('hidden');
+    if (actions) actions.classList.add('hidden');
+    m.onclick = (e) => { if(e.target === m) hideDisclaimer(); };
+  }
+  
   m.classList.remove('hidden');
   m.classList.add('flex');
 }
@@ -1602,6 +1620,13 @@ function hideDisclaimer() {
   const m = document.getElementById('modal-disclaimer');
   m.classList.add('hidden');
   m.classList.remove('flex');
+}
+function acceptDisclaimer() {
+  localStorage.setItem('hungu_disclaimer_accepted', 'true');
+  hideDisclaimer();
+}
+function exitApp() {
+  window.location.href = "https://www.google.com";
 }
 
 async function fetchStats() {
@@ -2265,6 +2290,11 @@ document.addEventListener('DOMContentLoaded', () => {
   initAuth();
   initGoogleSignIn();
   loadBreakingTicker();
+
+  // Show disclaimer for new users
+  if (!localStorage.getItem('hungu_disclaimer_accepted')) {
+    setTimeout(() => showDisclaimer(true), 1000);
+  }
 });
 
 // ── Search ─────────────────────────────────────────────────────────────────
