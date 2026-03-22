@@ -647,6 +647,37 @@ async def toggle_urgent(article_id: str, request: Request, db: Session = Depends
     db.commit()
     return {"id": article_id, "urgent": a.urgent}
 
+@app.delete("/admin/articles/{article_id}", status_code=204)
+async def delete_article(article_id: str, request: Request, db: Session = Depends(get_db)):
+    require_admin(request)
+    a = db.query(ArticleModel).filter(ArticleModel.id == article_id).first()
+    if not a:
+        raise HTTPException(status_code=404, detail="Article not found")
+    db.delete(a)
+    db.commit()
+    return None
+
+@app.patch("/admin/articles/{article_id}/rescan", status_code=200)
+async def rescan_article(article_id: str, request: Request, db: Session = Depends(get_db)):
+    """Wipe AI fields so the worker re-enriches this article."""
+    require_admin(request)
+    a = db.query(ArticleModel).filter(ArticleModel.id == article_id).first()
+    if not a:
+        raise HTTPException(status_code=404, detail="Article not found")
+    
+    # Wipe enrichment fields
+    a.summary = ""
+    a.impact = "Impact analysis pending."
+    a.actions_now = ""
+    a.actions_later = ""
+    a.prophecy_verse = ""
+    a.prophecy_text = ""
+    a.prophecy_insight = ""
+    
+    a.updated_at = datetime.datetime.now(datetime.timezone.utc)
+    db.commit()
+    return {"status": "reset", "id": str(a.id)}
+
 @app.get("/admin/dashboard")
 async def admin_dashboard(request: Request, db: Session = Depends(get_db)):
     """Full platform stats. Protected by X-Admin-Key header."""
