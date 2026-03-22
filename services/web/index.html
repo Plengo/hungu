@@ -1001,6 +1001,15 @@ function renderFeed() {
 
   loadStories();
   renderCategoryTabs();
+  
+  if (state.currentCategory === 'Promoted') {
+    // Special case for Ads tab: show several ads
+    state.feedItems = [];
+    state.feedOffset = 0;
+    list.innerHTML = adCard() + adCard() + adCard() + adCard() + adCard() + _feedFooterHtml();
+    return;
+  }
+
   let items = getArticles();
   if (state.currentCategory !== 'all') {
     items = items.filter(a => (a.category || '').toLowerCase() === state.currentCategory.toLowerCase());
@@ -1232,6 +1241,12 @@ function openArticle(id) {
   const img = articleImg(a);
   const jwLink = a.jwLink || `https://www.jw.org/en/search/?q=${encodeURIComponent((a.prophecy.verse || '') + ' end times prophecy')}`;
 
+  const adminBtn = _adminKey ? `
+    <div class="flex items-center gap-2">
+      <button onclick="deleteArticle('${a.id}')" class="bg-red-600 text-white px-3 py-1.5 rounded-full text-[10px] font-bold flex items-center gap-1 press shadow">🗑️ Delete</button>
+      <button onclick="rescanArticle('${a.id}')" class="bg-amber-500 text-white px-3 py-1.5 rounded-full text-[10px] font-bold flex items-center gap-1 press shadow">🔄 Rescan</button>
+    </div>` : '';
+
   document.getElementById('detail-content').innerHTML = `
     <!-- Sticky top bar -->
     <div class="sticky top-0 z-40 flex items-center justify-between px-4 sm:px-8 py-3 bg-white/95 backdrop-blur border-b border-slate-100">
@@ -1239,6 +1254,7 @@ function openArticle(id) {
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg> Back
       </button>
       <div class="flex items-center gap-2">
+        ${adminBtn}
         <button onclick="speakText(_buildTtsText(norm(getArticleById('${a.id}'))), '${a.id}')" class="bg-[#87ceeb] text-white px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1 press">
           🔊 Listen
         </button>
@@ -1295,6 +1311,46 @@ function openArticle(id) {
   showView('detail');
   const dbod = document.getElementById('detail-body');
   if (dbod) dbod.parentElement.scrollTop = 0;
+}
+
+async function deleteArticle(id) {
+  if (!confirm("Are you sure you want to completely delete this article? The worker will rescan the site later and fix mistakes.")) return;
+  try {
+    const res = await fetch(`/api/admin/articles/${id}`, {
+      method: 'DELETE',
+      headers: { 'X-Admin-Key': _adminKey }
+    });
+    if (!res.ok) throw new Error(await res.text());
+    alert('Article deleted.');
+    // Refresh feed
+    state.articles = state.articles.filter(a => String(a.id) !== String(id));
+    showView('feed');
+    renderFeed();
+  } catch (err) {
+    alert("Error: " + err.message);
+  }
+}
+
+async function rescanArticle(id) {
+  if (!confirm('This will wipe the AI summary and re-enrich the article. Continue?')) return;
+  try {
+    const res = await fetch(`/api/admin/articles/${id}/rescan`, {
+      method: 'PATCH',
+      headers: { 'X-Admin-Key': _adminKey }
+    });
+    if (!res.ok) throw new Error(await res.text());
+    alert('Article reset for rescan.');
+    // Refresh article in state if it's there
+    const a = getArticleById(id);
+    if (a) {
+      a.summary = "";
+      a.actions_now = "";
+    }
+    showView('feed');
+    renderFeed();
+  } catch(e) {
+    alert('Error: ' + e.message);
+  }
 }
 
 function shareArticle(id) {
@@ -1564,8 +1620,8 @@ function _buildFeedHtml(articles, startOffset) {
   return cards.join('');
 }
 
-const CAT_ICONS = { Wars:'⚔️', Economy:'💹', Politics:'🏛️', Health:'🏥', Local:'📍', Crime:'🚨', Environment:'🌿' };
-const CAT_HIDDEN = new Set(['Jobs','Auctions']);
+const CAT_ICONS = { Wars:'⚔️', Economy:'💹', Politics:'🏛️', Health:'🏥', Local:'📍', Crime:'🚨', Environment:'🌿', Jobs:'💼', Auctions:'🏠', Entertainment:'🎭', Exciting:'🔥', Funny:'😂', Rare:'🦄', Wonderful:'🌟', Promoted:'📢' };
+const CAT_HIDDEN = new Set([]);
 
 function renderCategoryTabs() {
   const bar = document.getElementById('cat-bar');
@@ -1573,6 +1629,10 @@ function renderCategoryTabs() {
   const articles = getArticles();
   const counts = {};
   articles.forEach(a => { const c = a.category||''; if (c && !CAT_HIDDEN.has(c)) counts[c] = (counts[c]||0)+1; });
+  
+  // Add "Promoted" to counts to ensure the tab shows up
+  counts['Promoted'] = 99;
+
   const existing = new Set([...bar.querySelectorAll('.cat-btn[data-cat]')].map(b => b.dataset.cat));
   // Add new tabs
   Object.keys(counts).forEach(cat => {
@@ -1778,8 +1838,17 @@ function renderAdminData(d) {
     .join('');
 
   document.getElementById('admin-recent').innerHTML = (d.recent_articles || [])
-    .map(a => `<div class="flex items-center gap-2 py-2 border-b border-slate-100 last:border-0"><span class="text-xs ${a.enriched ? 'text-green-500' : 'text-slate-300'}">${a.enriched ? '✅' : '⏳'}</span><span class="text-xs font-semibold text-slate-700 flex-1 truncate">${a.title}</span><span class="text-[10px] text-slate-400 mr-1">${a.source}</span><button onclick="adminToggleUrgent('${a.id}',this)" class="text-[11px] font-bold px-2 py-0.5 rounded-full border ${a.urgent ? 'bg-red-600 text-white border-red-600' : 'bg-white text-slate-400 border-slate-200'}">${a.urgent ? '🔴 URGENT' : '⚪ urgent'}</button></div>`)
-    .join('');
+    .map(a => `
+      <div class="flex items-center gap-2 py-2 border-b border-slate-100 last:border-0">
+        <span class="text-xs ${a.enriched ? 'text-green-500' : 'text-slate-300'}">${a.enriched ? '✅' : '⏳'}</span>
+        <span class="text-xs font-semibold text-slate-700 flex-1 truncate">${a.title}</span>
+        <span class="text-[10px] text-slate-400 mr-1">${a.source}</span>
+        <div class="flex gap-1">
+          <button onclick="adminToggleUrgent('${a.id}',this)" class="text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${a.urgent ? 'bg-red-600 text-white border-red-600' : 'bg-white text-slate-400 border-slate-200'}">${a.urgent ? '🔴' : '⚪'}</button>
+          <button onclick="rescanArticle('${a.id}')" class="text-[10px] font-bold px-1.5 py-0.5 rounded-full border bg-white text-amber-500 border-amber-200">🔄</button>
+          <button onclick="deleteArticle('${a.id}')" class="text-[10px] font-bold px-1.5 py-0.5 rounded-full border bg-white text-red-500 border-red-200">🗑️</button>
+        </div>
+      </div>`).join('');
 }
 
 async function adminToggleUrgent(id, btn) {
@@ -1955,9 +2024,12 @@ async function loadStories() {
   _renderStoriesStrip();
 }
 
+// Categories that should be treated as "story" types (eligible for the stories strip)
+const STORY_CATEGORIES = new Set(['Community', 'Entertainment', 'Exciting', 'Funny', 'Wonderful', 'Rare']);
+
 function _isUnverified(a) {
   if (!a) return false;
-  if ((a.category || '') === 'Community') return true;
+  if (STORY_CATEGORIES.has(a.category || '')) return true;
   const src = (a.source || '').toLowerCase();
   return src.includes('facebook') || src.includes('fb ') || src.includes('whatsapp') ||
          src.includes('group') || src.includes('residents') || src.includes('community report');
@@ -1985,10 +2057,13 @@ function _renderStoriesStrip() {
         ? 'border-color:#4a90a4'              /* blue = your area, verified */
         : 'border-color:#cbd5e1';             /* grey = general */
     const src = a.source || '';
+    // Show category icon for story types
+    const catIcon = CAT_ICONS[a.category] ? `<span class="absolute top-1.5 left-1.5 bg-white/80 text-black text-[13px] font-black w-5 h-5 rounded-full flex items-center justify-center leading-none shadow">${CAT_ICONS[a.category]}</span>` : '';
     return `<button onclick="openStory(${idx})" class="flex-shrink-0 press" style="width:130px">
       <div class="relative rounded-2xl overflow-hidden border-[3px] shadow-sm" style="width:130px;height:170px;${ring}">
         <img src="${img}" class="w-full h-full object-cover" loading="lazy" onerror="this.src='${CATEGORY_IMAGES.default}'"/>
         <div class="absolute inset-0" style="background:linear-gradient(0deg,rgba(0,0,0,0.75) 0%,rgba(0,0,0,0.1) 50%,rgba(0,0,0,0.3) 100%)"></div>
+        ${catIcon}
         ${unverified ? `<span class="absolute top-1.5 right-1.5 bg-amber-500 text-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center leading-none">⚠</span>` : ''}
         <div class="absolute bottom-0 left-0 right-0 p-2">
           <p class="text-[9px] font-bold text-white/70 truncate">${src}</p>
@@ -2125,7 +2200,7 @@ async function postCommunityStory() {
   }
 }
 
-// ─── Breaking News Ticker ─────────────────────────────────────────────────────
+// ── Breaking News Ticker ─────────────────────────────────────────────────────
 async function loadBreakingTicker() {
   try {
     const res = await fetch('/api/feed?limit=50');
@@ -2153,7 +2228,7 @@ document.addEventListener('DOMContentLoaded', () => {
   loadBreakingTicker();
 });
 
-// ─── Search ─────────────────────────────────────────────────────────────────
+// ── Search ─────────────────────────────────────────────────────────────────
 let _searchAbort = null;
 async function executeSearch() {
   const q = document.getElementById('search-input').value.trim();
@@ -2197,7 +2272,7 @@ async function executeSearch() {
   }
 }
 
-// ─── Weather, Date, and Time Widget ─────────────────────────────────────────
+// ── Weather, Date, and Time Widget ─────────────────────────────────────────
 let _cachedCoords = null;
 
 async function updateWeatherWidget() {
