@@ -1254,10 +1254,24 @@ function getArticleById(id) {
   return getArticles().find(x => String(x.id) === String(id)) || state.searchResults.find(x => String(x.id) === String(id));
 }
 
-function openArticle(id) {
+async function openArticle(id) {
   // Save feed scroll position for back navigation
   const feedList = document.getElementById('feed-list');
   if (feedList) state._feedScrollTop = feedList.scrollTop;
+  
+  let raw = getArticleById(id);
+  
+  // If not in state, fetch from API (needed for deep links)
+  if (!raw) {
+    try {
+      const res = await fetch(`${API_URL}/articles/${id}`);
+      if (res.ok) raw = await res.json();
+    } catch (e) {}
+  }
+  
+  if (!raw) return;
+  const a = norm(raw);
+
   // Ping stats
   if (state.uid) {
     fetch(`${API_URL}/stats/ping`, {
@@ -1265,10 +1279,7 @@ function openArticle(id) {
       body: JSON.stringify({ visitor_id: state.uid, page: 'article' }),
     }).catch(() => {});
   }
-
-  const raw = getArticleById(id);
-  if (!raw) return;
-  const a = norm(raw);
+  
   // Record view
   fetch(`${API_URL}/articles/${a.id}/view`, { method: 'POST' }).catch(() => {});
   if (!state.read.includes(a.id)) { state.read.push(a.id); saveState(); updateStats(); }
@@ -1392,8 +1403,9 @@ function shareArticle(id) {
   const raw = getArticleById(id);
   if (!raw) return;
   const a = norm(raw);
-  const shareUrl = a.url || window.location.href;
-  const txt = `${a.title}\n\n${a.summary}\n\n${shareUrl}`;
+  // Shared link points back to HUNGU with article ID
+  const shareUrl = `${window.location.origin}/?article=${a.id}`;
+  const txt = `${a.title}\n\n${a.summary}\n\nRead more on HUNGU: ${shareUrl}`;
   // Always copy to clipboard first
   if (navigator.clipboard) {
     navigator.clipboard.writeText(txt).then(() => {
@@ -2294,6 +2306,16 @@ document.addEventListener('DOMContentLoaded', () => {
   // Show disclaimer for new users
   if (!localStorage.getItem('hungu_disclaimer_accepted')) {
     setTimeout(() => showDisclaimer(true), 1000);
+  }
+
+  // Deep link: open article from URL parameter ?article={id}
+  const urlParams = new URLSearchParams(window.location.search);
+  const deepLinkArticleId = urlParams.get('article');
+  if (deepLinkArticleId) {
+    // Small delay to ensure feed/auth are ready
+    setTimeout(() => openArticle(deepLinkArticleId), 300);
+    // Clear URL parameter without reloading (optional, but cleaner)
+    window.history.replaceState({}, document.title, window.location.pathname);
   }
 });
 
