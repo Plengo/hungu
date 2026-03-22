@@ -794,6 +794,7 @@ function showView(name, opts = {}) {
   if (!target) { showView('feed'); return; }
   target.classList.remove('hidden');
   const prevView = state.currentView;
+  state.prevView = prevView;
   state.currentView = name;
   window.scrollTo(0, 0);
   if (name === 'feed') {
@@ -1205,6 +1206,10 @@ function formatActions(text) {
   return `<p class="text-sm text-slate-700">${text}</p>`;
 }
 
+function getArticleById(id) {
+  return getArticles().find(x => String(x.id) === String(id)) || state.searchResults.find(x => String(x.id) === String(id));
+}
+
 function openArticle(id) {
   // Save feed scroll position for back navigation
   const feedList = document.getElementById('feed-list');
@@ -1230,7 +1235,7 @@ function openArticle(id) {
   document.getElementById('detail-content').innerHTML = `
     <!-- Sticky top bar -->
     <div class="sticky top-0 z-40 flex items-center justify-between px-4 sm:px-8 py-3 bg-white/95 backdrop-blur border-b border-slate-100">
-      <button onclick="showView('feed')" class="flex items-center gap-1.5 text-slate-500 font-bold text-sm press">
+      <button onclick="showView(state.prevView || 'feed')" class="flex items-center gap-1.5 text-slate-500 font-bold text-sm press">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg> Back
       </button>
       <div class="flex items-center gap-2">
