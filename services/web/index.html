@@ -700,6 +700,9 @@
 const API_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
   ? 'http://localhost:8000' : '/api';
 
+// Categories that should be treated as "story" types (eligible for the stories strip)
+const STORY_CATEGORIES = new Set(['Community', 'Entertainment', 'Exciting', 'Funny', 'Wonderful', 'Rare']);
+
 const CATEGORY_IMAGES = {
   'Wars':     'https://images.unsplash.com/photo-1579684453423-f84349ef60b0?w=800&q=60',
   'Politics': 'https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?w=800&q=60',
@@ -2021,9 +2024,6 @@ async function loadStories() {
   _stories = articles.slice(0, 20);
   _renderStoriesStrip();
 }
-
-// Categories that should be treated as "story" types (eligible for the stories strip)
-const STORY_CATEGORIES = new Set(['Community', 'Entertainment', 'Exciting', 'Funny', 'Wonderful', 'Rare']);
 
 function _isUnverified(a) {
   if (!a) return false;
