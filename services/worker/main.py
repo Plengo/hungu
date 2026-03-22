@@ -236,6 +236,7 @@ def build_prompt(title: str, raw_text: str, source: str, category: str) -> str:
 Analyse this article and respond ONLY with valid JSON (no markdown, no ```json wrapper).
 
 {{
+  "category": "Choose the most appropriate: Wars, Politics, Economy, Health, Jobs, Local, Crime, Auctions, Entertainment, Exciting, Funny, Wonderful, Rare. Use the 'Story' categories (Entertainment, Exciting, Funny, Wonderful, Rare) if the article is lighthearted, inspiring, unusual, or community-focused.",
   "summary": "A very short, punchy 1-2 sentence hook summarizing ONLY what is explicitly stated in the article.",
   "comprehensive_summary": "A full, detailed summary (3-5 sentences). You MUST rely STRICTLY on the facts, dates, names, and scores provided in the article text. DO NOT invent information or pull from historical training data to fill in gaps.",
   "impact": "2-3 sentences explaining what this means for an ordinary South African citizen today. Keep it real. Look at history, present, and make advantages and disadvantages. Do NOT just support anything blindly.",
@@ -1008,19 +1009,19 @@ def archive_old_posts() -> None:
     except Exception as exc:
         log.error("archive_old_posts failed: %s", exc)
 
-def _enrich_single(art: dict, stagger_idx: int = 0) -> tuple:
-    """Enrich one article using AI. Runs in a thread — uses a random available provider."""
-    time.sleep(stagger_idx * 0.8)  # stagger start so threads each hit a different AI provider
-    prompt = build_prompt(
-        art["title"],
-        art.get("full_context") or art.get("summary") or art["title"],
-        art["source"], art["category"]
-    )
+def _enrich_single(art: dict) -> tuple[str, bool]:
+    """Process one article with AI and PATCH the result back to the API."""
+    prompt = build_prompt(art["title"], art.get("full_context", ""), art["source"], art["category"])
     ai = call_ai(prompt)
     if not ai:
         return (art["id"], False)
-    jw_link = _jw_link_for(art["category"], ai.get("jw_topic", ""))
+    
+    # Allow AI to recategorize
+    new_cat = ai.get("category", art["category"])
+    jw_link = _jw_link_for(new_cat, ai.get("jw_topic", ""))
+    
     payload = json.dumps({
+        "category":         new_cat,
         "summary":          ai.get("summary", ""),
         "full_context":     ai.get("comprehensive_summary", ""),
         "impact":           ai.get("impact", ""),
@@ -1142,6 +1143,10 @@ def process_and_submit(raw_articles: list) -> list:
         time.sleep(AI_DELAY)
 
         if ai:
+            # Allow AI to recategorize (except for Auctions which has a strict prompt)
+            if raw.get("category") != "Auctions":
+                raw["category"] = ai.get("category", raw["category"])
+
             is_auction = raw.get("category") == "Auctions"
             if is_auction:
                 raw.update({
@@ -1257,7 +1262,7 @@ def fast_submit(raw_articles: list) -> list:
 
 # ─── Scheduler ────────────────────────────────────────────────────────────────
 
-_SCRAPER_FNS = {
+ SCRAPER_FNS = {
     "scrape_bbc_world":    scrape_bbc_world,
     "scrape_sa_breaking":  scrape_sa_breaking,
     "scrape_gov_news":     scrape_gov_news,
