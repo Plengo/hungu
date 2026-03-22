@@ -236,8 +236,8 @@ def build_prompt(title: str, raw_text: str, source: str, category: str) -> str:
 Analyse this article and respond ONLY with valid JSON (no markdown, no ```json wrapper).
 
 {{
-  "summary": "A very short, punchy 1-2 sentence hook. Must be brief so readers can scan cards quickly.",
-  "comprehensive_summary": "A full, detailed summary (3-5 sentences). Go BEYOND the headline: include key details, numbers, dates, people involved, context, and implications.",
+  "summary": "A very short, punchy 1-2 sentence hook summarizing ONLY what is explicitly stated in the article.",
+  "comprehensive_summary": "A full, detailed summary (3-5 sentences). You MUST rely STRICTLY on the facts, dates, names, and scores provided in the article text. DO NOT invent information or pull from historical training data to fill in gaps.",
   "impact": "2-3 sentences explaining what this means for an ordinary South African citizen today. Keep it real. Look at history, present, and make advantages and disadvantages. Do NOT just support anything blindly.",
   "actions_now": "• Practical things the reader can do RIGHT NOW. If NO immediate action is needed, DO NOT exaggerate — just say 'There is no need for your action currently' and give simple advice.",
   "actions_later": "• Things to do in the coming days/weeks. If NO action is needed, just say 'There is no need for your action currently' and maybe advise something simple to be aware of.",
@@ -250,8 +250,8 @@ Analyse this article and respond ONLY with valid JSON (no markdown, no ```json w
 }}
 
 RULES:
-1. The summary MUST be very short (1-2 sentences max).
-2. The comprehensive_summary MUST be detailed and provide all the context needed for a full read.
+1. The summary MUST be very short (1-2 sentences max). DO NOT HALLUCINATE ANY FACTS.
+2. The comprehensive_summary MUST be detailed but strictly bounded by the provided article text. NEVER guess dates, scores, or names not provided.
 3. The impact MUST be practical, realistic, state advantages and disadvantages, and be specific to South Africans.
 4. actions_now and actions_later MUST NOT exaggerate danger. If there's nothing to do, literally say 'There is no need for your action currently.' Do NOT instruct the reader to protest, boycott, petition, or take political sides.
 5. Spiritual fields (verse, verse_text, verse_niv, insight, jw_topic) are OPTIONAL. Only include them if the article genuinely connects to deep human themes — death, war, suffering, injustice, disasters, morality, corruption. Do NOT force a verse onto political party elections, sports results, property listings, or routine economic news.
@@ -979,8 +979,8 @@ def build_auction_prompt(title: str, raw_text: str, source: str) -> str:
     return f"""You are the HUNGU AI engine. Analyse this South African property auction notice and respond ONLY with valid JSON (no markdown wrapper) matching this schema exactly:
 
 {{
-  "summary": "A very short, punchy 1-2 sentence hook. Must be brief so readers can scan cards quickly.",
-  "comprehensive_summary": "A full, detailed summary (3-5 sentences) including: property type, location/address, estimated price or reserve price if mentioned, auction date, and how to get more info or register to bid.",
+  "summary": "A very short, punchy 1-2 sentence hook summarizing ONLY what is explicitly stated in the notice.",
+  "comprehensive_summary": "A full, detailed summary (3-5 sentences) including: property type, location/address, estimated price or reserve price if mentioned, auction date, and how to get more info or register to bid. NEVER hallucinate dates or prices not in the text.",
   "actions_now": "2-3 bullet points of what someone interested should do RIGHT NOW (e.g. contact sheriff, view property, get pre-approval).",
   "actions_later": "2-3 bullet points for preparation (e.g. arrange financing, attend auction, do due diligence).",
   "urgent": true or false
