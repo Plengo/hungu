@@ -1974,31 +1974,32 @@ async function loadStories() {
 
   let articles = [];
   try {
+    // Fetch general feed (no category restriction) to find all "story" types locally
     if (suburb) {
-      const r = await fetch(`${API_URL}/feed?category=Community&location=${encodeURIComponent(suburb)}&limit=30`);
+      const r = await fetch(`${API_URL}/feed?location=${encodeURIComponent(suburb)}&limit=50`);
       if (r.ok) articles = await r.json();
     }
   } catch(e) {}
   try {
-    if (articles.length < 3 && city) {
-      const r = await fetch(`${API_URL}/feed?category=Community&location=${encodeURIComponent(city)}&limit=30`);
+    if (articles.length < 5 && city) {
+      const r = await fetch(`${API_URL}/feed?location=${encodeURIComponent(city)}&limit=50`);
       if (r.ok) { const all = await r.json(); articles = [...articles, ...all]; }
     }
   } catch(e) {}
   try {
-    if (articles.length < 3 && province) {
-      const r = await fetch(`${API_URL}/feed?category=Community&location=${encodeURIComponent(province)}&limit=30`);
+    if (articles.length < 5 && province) {
+      const r = await fetch(`${API_URL}/feed?location=${encodeURIComponent(province)}&limit=50`);
       if (r.ok) { const all = await r.json(); articles = [...articles, ...all]; }
     }
   } catch(e) {}
   try {
-    if (articles.length < 3) {
-      const r = await fetch(`${API_URL}/feed?category=Community&limit=30`);
+    if (articles.length < 5) {
+      const r = await fetch(`${API_URL}/feed?limit=60`);
       if (r.ok) { const all = await r.json(); articles = [...articles, ...all]; }
     }
   } catch(e) {}
 
-  // Keep ONLY social media / unverified content — no regular verified news
+  // Filter for items that should be stories (unverified sources OR specific story categories)
   articles = articles.filter(a => _isUnverified(a));
 
   // Deduplicate by article id
