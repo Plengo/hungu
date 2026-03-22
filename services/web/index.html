@@ -2105,6 +2105,11 @@ function _renderStoriesStrip() {
     }
   });
 
+  // If we have stories but fewer than 3, ensure at least one ad is shown
+  if (_stories.length > 0 && _stories.length < 3) {
+    cards.push(adStoryCard());
+  }
+
   row.innerHTML = cards.join('');
   strip.classList.remove('hidden');
 }
