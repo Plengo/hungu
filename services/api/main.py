@@ -145,6 +145,7 @@ class TrackRequest(BaseModel):
 
 class ArticleEnrichIn(BaseModel):
     summary:          Optional[str] = None
+    full_context:     Optional[str] = None
     impact:           Optional[str] = None
     actions_now:      Optional[str] = None
     actions_later:    Optional[str] = None
@@ -410,6 +411,7 @@ async def enrich_article(
     if not a:
         raise HTTPException(status_code=404, detail="Article not found")
     if body.summary          is not None: a.summary           = body.summary
+    if body.full_context     is not None: a.full_context      = body.full_context
     if body.impact           is not None: a.impact            = body.impact
     if body.actions_now      is not None: a.actions_now       = body.actions_now
     if body.actions_later    is not None: a.actions_later     = body.actions_later

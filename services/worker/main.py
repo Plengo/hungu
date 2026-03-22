@@ -236,10 +236,11 @@ def build_prompt(title: str, raw_text: str, source: str, category: str) -> str:
 Analyse this article and respond ONLY with valid JSON (no markdown, no ```json wrapper).
 
 {{
-  "summary": "A comprehensive 3-5 sentence summary. Go BEYOND the headline: include key details, numbers, dates, people involved, context, and implications. If the article text is short, expand with relevant background a South African reader needs.",
-  "impact": "2-3 sentences explaining what this means for an ordinary South African citizen today. Be specific: mention how it affects their wallet, safety, rights, community, or daily life. Never say 'coming soon' or 'pending'.",
-  "actions_now": "• Action 1: something the reader can do RIGHT NOW\n• Action 2: another immediate step\n• Action 3: a practical thing to check or prepare today",
-  "actions_later": "• Action 1: something to do in the coming days or weeks\n• Action 2: a longer-term preparation step\n• Action 3: how to stay informed or get involved",
+  "summary": "A very short, punchy 1-2 sentence hook. Must be brief so readers can scan cards quickly.",
+  "comprehensive_summary": "A full, detailed summary (3-5 sentences). Go BEYOND the headline: include key details, numbers, dates, people involved, context, and implications.",
+  "impact": "2-3 sentences explaining what this means for an ordinary South African citizen today. Keep it real. Look at history, present, and make advantages and disadvantages. Do NOT just support anything blindly.",
+  "actions_now": "• Practical things the reader can do RIGHT NOW. If NO immediate action is needed, DO NOT exaggerate — just say 'There is no need for your action currently' and give simple advice.",
+  "actions_later": "• Things to do in the coming days/weeks. If NO action is needed, just say 'There is no need for your action currently' and maybe advise something simple to be aware of.",
   "verse": "ONLY include if the article touches on themes like death, war, suffering, injustice, natural disaster, morality, greed, corruption, or faith. Otherwise leave as empty string.",
   "verse_text": "If verse is set: the NWT (New World Translation) text of that verse — quote it accurately. Otherwise empty string.",
   "verse_niv": "If verse is set: the same verse quoted in the NIV (New International Version) translation. Otherwise empty string.",
@@ -249,18 +250,19 @@ Analyse this article and respond ONLY with valid JSON (no markdown, no ```json w
 }}
 
 RULES:
-1. The summary MUST be 3-5 sentences minimum with genuinely useful detail.
-2. The impact MUST be practical and specific to South Africans — never generic.
-3. actions_now and actions_later MUST each have 2-3 bullet points starting with • and be PRACTICAL and INFORMATIONAL only. Do NOT instruct the reader to protest, boycott, petition, or take political sides. Say "monitor developments" not "demand your rights".
-4. Spiritual fields (verse, verse_text, verse_niv, insight, jw_topic) are OPTIONAL. Only include them if the article genuinely connects to deep human themes — death, war, suffering, injustice, disasters, morality, corruption. Do NOT force a verse onto political party elections, sports results, property listings, or routine economic news.
-5. If you do include a verse, it MUST be real and directly relevant. verse_text must be NWT; verse_niv must be the same verse in NIV.
-6. Return ONLY the JSON object. No extra text before or after.
+1. The summary MUST be very short (1-2 sentences max).
+2. The comprehensive_summary MUST be detailed and provide all the context needed for a full read.
+3. The impact MUST be practical, realistic, state advantages and disadvantages, and be specific to South Africans.
+4. actions_now and actions_later MUST NOT exaggerate danger. If there's nothing to do, literally say 'There is no need for your action currently.' Do NOT instruct the reader to protest, boycott, petition, or take political sides.
+5. Spiritual fields (verse, verse_text, verse_niv, insight, jw_topic) are OPTIONAL. Only include them if the article genuinely connects to deep human themes — death, war, suffering, injustice, disasters, morality, corruption. Do NOT force a verse onto political party elections, sports results, property listings, or routine economic news.
+6. If you do include a verse, it MUST be real and directly relevant. verse_text must be NWT; verse_niv must be the same verse in NIV.
+7. Return ONLY the JSON object. No extra text before or after.
 
 NEUTRALITY RULES — mandatory for every field:
-7. Use the official name of every government, organisation, and country at all times. NEVER substitute with subjective labels — do NOT write "regime", "terrorist group", "radical", "extremist", "illegal government", "freedom fighters", "occupation force", or "controversial" unless you are directly quoting a named person from the article.
-8. When a law, policy, cultural rule, or political outcome is contested (e.g. dress-code laws, election results, protest crackdowns, religious requirements in sport), describe ONLY the verifiable facts — what was decided, by whom, and what the stated effect is. Do NOT endorse or condemn either side.
-9. Do NOT characterise any leader, political party, or institution as good or bad. Stick strictly to what the article states happened — not what any party claims, implies, or alleges unless clearly attributed.
-10. The impact and actions fields must reflect objective, practical consequences for ordinary South Africans — not editorial opinion or moral judgment.
+8. Use the official name of every government, organisation, and country at all times. NEVER substitute with subjective labels — do NOT write "regime", "terrorist group", "radical", "extremist", "illegal government", "freedom fighters", "occupation force", or "controversial" unless you are directly quoting a named person from the article.
+9. When a law, policy, cultural rule, or political outcome is contested (e.g. dress-code laws, election results, protest crackdowns, religious requirements in sport), describe ONLY the verifiable facts — what was decided, by whom, and what the stated effect is. Do NOT endorse or condemn either side.
+10. Do NOT characterise any leader, political party, or institution as good or bad. Stick strictly to what the article states happened — not what any party claims, implies, or alleges unless clearly attributed.
+11. The impact and actions fields must reflect objective, practical consequences for ordinary South Africans — not editorial opinion or moral judgment.
 
 Source: {source}
 Category: {category}
@@ -977,9 +979,10 @@ def build_auction_prompt(title: str, raw_text: str, source: str) -> str:
     return f"""You are the HUNGU AI engine. Analyse this South African property auction notice and respond ONLY with valid JSON (no markdown wrapper) matching this schema exactly:
 
 {{
-  "summary": "A comprehensive 3-4 sentence summary including: property type, location/address, estimated price or reserve price if mentioned, auction date, and how to get more info or register to bid.",
-  "actions_now": "2-3 bullet points of what someone interested should do RIGHT NOW (e.g. contact sheriff, view property, get pre-approval)",
-  "actions_later": "2-3 bullet points for preparation (e.g. arrange financing, attend auction, do due diligence)",
+  "summary": "A very short, punchy 1-2 sentence hook. Must be brief so readers can scan cards quickly.",
+  "comprehensive_summary": "A full, detailed summary (3-5 sentences) including: property type, location/address, estimated price or reserve price if mentioned, auction date, and how to get more info or register to bid.",
+  "actions_now": "2-3 bullet points of what someone interested should do RIGHT NOW (e.g. contact sheriff, view property, get pre-approval).",
+  "actions_later": "2-3 bullet points for preparation (e.g. arrange financing, attend auction, do due diligence).",
   "urgent": true or false
 }}
 
@@ -1019,6 +1022,7 @@ def _enrich_single(art: dict, stagger_idx: int = 0) -> tuple:
     jw_link = _jw_link_for(art["category"], ai.get("jw_topic", ""))
     payload = json.dumps({
         "summary":          ai.get("summary", ""),
+        "full_context":     ai.get("comprehensive_summary", ""),
         "impact":           ai.get("impact", ""),
         "actions_now":      ai.get("actions_now", ""),
         "actions_later":    ai.get("actions_later", ""),
@@ -1142,6 +1146,7 @@ def process_and_submit(raw_articles: list) -> list:
             if is_auction:
                 raw.update({
                     "summary":       ai.get("summary", raw.get("raw_text", "")[:120]),
+                    "full_context":  ai.get("comprehensive_summary", raw.get("raw_text", "")),
                     "impact":        "",
                     "actions_now":   ai.get("actions_now", ""),
                     "actions_later": ai.get("actions_later", ""),
@@ -1153,6 +1158,7 @@ def process_and_submit(raw_articles: list) -> list:
                 jw_link = _jw_link_for(raw.get("category", ""), ai.get("jw_topic", ""))
                 raw.update({
                     "summary":      ai.get("summary",      raw.get("raw_text", "")[:120]),
+                    "full_context": ai.get("comprehensive_summary", raw.get("raw_text", "")),
                     "impact":       ai.get("impact",       "Impact analysis pending."),
                     "actions_now":  ai.get("actions_now",  ""),
                     "actions_later": ai.get("actions_later", ""),

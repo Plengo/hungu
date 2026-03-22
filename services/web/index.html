@@ -768,6 +768,7 @@ const state = {
   saved:     JSON.parse(localStorage.getItem('hungu_saved') || '[]'),
   read:      JSON.parse(localStorage.getItem('hungu_read')  || '[]'),
   articles:  [],
+  searchResults: [],
   feedItems:    [],
   feedOffset:   0,
   feedPageSize: 8,
@@ -1216,7 +1217,7 @@ function openArticle(id) {
     }).catch(() => {});
   }
 
-  const raw = getArticles().find(x => String(x.id) === String(id));
+  const raw = getArticleById(id);
   if (!raw) return;
   const a = norm(raw);
   // Record view
@@ -1233,7 +1234,7 @@ function openArticle(id) {
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg> Back
       </button>
       <div class="flex items-center gap-2">
-        <button onclick="speakText(_buildTtsText(norm(getArticles().find(x=>String(x.id)==='${a.id}'))), '${a.id}')" class="bg-[#87ceeb] text-white px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1 press">
+        <button onclick="speakText(_buildTtsText(norm(getArticleById('${a.id}'))), '${a.id}')" class="bg-[#87ceeb] text-white px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1 press">
           🔊 Listen
         </button>
         <button onclick="toggleSave('${a.id}'); document.getElementById('save-detail').setAttribute('fill', state.saved.includes('${a.id}') ? 'currentColor' : 'none')"
@@ -1287,46 +1288,12 @@ function openArticle(id) {
     </div>`;
   setTimeout(_initSwipeBack, 100);
   showView('detail');
-}
-
-// ─── Bookmarks ─────────────────────────────────────────────────────────────────
-function toggleSave(id) {
-  const sid = String(id);
-  const idx = state.saved.indexOf(sid);
-  if (idx > -1) {
-    state.saved.splice(idx, 1);
-    if (state.uid && state.token)
-      fetch(`${API_URL}/user/${state.uid}/bookmark/${sid}`, {
-        method: 'DELETE', headers: { 'Authorization': `Bearer ${state.token}` },
-      }).catch(() => {});
-  } else {
-    state.saved.push(sid);
-    if (state.uid && state.token)
-      fetch(`${API_URL}/user/${state.uid}/bookmark/${sid}`, {
-        method: 'POST', headers: { 'Authorization': `Bearer ${state.token}` },
-      }).catch(() => {});
-  }
-  saveState(); updateStats();
-  // Update save button in feed if visible
-  const btn = document.getElementById('save-' + sid);
-  if (btn) {
-    const svg = btn.querySelector('svg');
-    const is = state.saved.includes(sid);
-    if (svg) { svg.setAttribute('fill', is ? 'currentColor' : 'none'); svg.classList.toggle('text-[#4a90a4]', is); svg.classList.toggle('text-slate-500', !is); }
-  }
-  if (state.currentView === 'feed') {
-    renderFeed();
-    setTimeout(() => {
-      // Force AdSense to re-render ads on view change
-      document.querySelectorAll('ins.adsbygoogle').forEach(ins => {
-        try { if (window.adsbygoogle && Array.isArray(window.adsbygoogle)) window.adsbygoogle.push({}); } catch(e) {}
-      });
-    }, 500);
-  }
+  const dbod = document.getElementById('detail-body');
+  if (dbod) dbod.parentElement.scrollTop = 0;
 }
 
 function shareArticle(id) {
-  const raw = getArticles().find(x => String(x.id) === String(id));
+  const raw = getArticleById(id);
   if (!raw) return;
   const a = norm(raw);
   const shareUrl = a.url || window.location.href;
@@ -1354,7 +1321,7 @@ async function reactArticle(id, reaction) {
     if (!res.ok) return;
     const data = await res.json();
     // Update in-memory article data
-    const raw = getArticles().find(x => String(x.id) === String(id));
+    const raw = getArticleById(id);
     if (raw) { raw.likes = data.likes; raw.dislikes = data.dislikes; }
     // Update detail view if visible
     const dl = document.getElementById('detail-likes');
@@ -2216,6 +2183,7 @@ async function executeSearch() {
     }
     
     status.textContent = `${data.articles.length} Results`;
+    state.searchResults = data.articles;
     list.innerHTML = data.articles.map(a => newsCard(a)).join('');
   } catch (err) {
     if (err.name !== 'AbortError') {
