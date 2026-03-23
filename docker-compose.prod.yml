@@ -14,11 +14,12 @@ version: '3.8'
 
 services:
   web:
+    build: ./services/web
     restart: always
     ports:
       - "80:80"
       - "443:443"
-    volumes:
+    volumes: 
       - /etc/letsencrypt:/etc/letsencrypt:ro
       - /var/www/certbot:/var/www/certbot:ro
 
