@@ -19,3 +19,6 @@ services/iaas/backend.hcl
 .DS_Store
 .idea/
 *.swp
+
+# SSH / Server info
+server_info.json
