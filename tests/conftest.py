@@ -124,3 +124,15 @@ def make_article(overrides: dict = None) -> dict:
     if overrides:
         base.update(overrides)
     return base
+
+
+@pytest.fixture()
+def article_in_db(client, worker_headers):
+    """Creates one article via the API and returns its response JSON {id, status}."""
+    resp = client.post(
+        "/articles",
+        json=make_article({"title": "Fixture Article", "raw_text": "fixture raw text"}),
+        headers=worker_headers,
+    )
+    assert resp.status_code == 201
+    return resp.json()
