@@ -30,6 +30,10 @@ admin_secret     = "hungu-admin-2026"
 
 google_client_id = "470647697397-xxxx.apps.googleusercontent.com"
 
+# ── Google Maps (Places autocomplete in the frontend) ─────────────────────────
+# Enable: Maps JavaScript API + Places API  |  Restrict to: https://hungu.co.za/*
+gmaps_api_key = "AIzaSy..."
+
 # ── AI Provider API Keys (cascade: Gemini → Groq → Mistral → OpenRouter → Cerebras → DeepSeek → Kimi) ──
 # Get from: https://aistudio.google.com/app/apikey
 gemini_api_key     = "AIzaSy..."

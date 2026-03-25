@@ -7,7 +7,9 @@ on:
   push:
     branches: [main]
     paths:
-      - "services/iaas/**"
+      - "services/**"
+      - "docker-compose.yml"
+      - "docker-compose.prod.yml"
       - ".github/workflows/terraform.yml"
   pull_request:
     branches: [main]
@@ -111,6 +113,10 @@ jobs:
           TF_VAR_worker_api_key: ${{ secrets.WORKER_API_KEY }}
           TF_VAR_admin_secret: ${{ secrets.ADMIN_SECRET }}
           TF_VAR_ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
+          TF_VAR_ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
+          TF_VAR_gmaps_api_key: ${{ secrets.GMAPS_API }}
+          TF_VAR_git_sha: ${{ github.sha }}
+          TF_VAR_github_token: ${{ github.token }}
         run: terraform plan -out=tfplan
 
       - name: Terraform Apply
@@ -128,6 +134,10 @@ jobs:
           TF_VAR_worker_api_key: ${{ secrets.WORKER_API_KEY }}
           TF_VAR_admin_secret: ${{ secrets.ADMIN_SECRET }}
           TF_VAR_ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
+          TF_VAR_ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
+          TF_VAR_gmaps_api_key: ${{ secrets.GMAPS_API }}
+          TF_VAR_git_sha: ${{ github.sha }}
+          TF_VAR_github_token: ${{ github.token }}
         run: |
           terraform apply -auto-approve tfplan
           echo "ran=true" >> "$GITHUB_OUTPUT"
@@ -144,6 +154,10 @@ jobs:
           TF_VAR_worker_api_key: ${{ secrets.WORKER_API_KEY }}
           TF_VAR_admin_secret: ${{ secrets.ADMIN_SECRET }}
           TF_VAR_ssh_public_key: ${{ secrets.SSH_PUBLIC_KEY }}
+          TF_VAR_ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
+          TF_VAR_gmaps_api_key: ${{ secrets.GMAPS_API }}
+          TF_VAR_git_sha: ${{ github.sha }}
+          TF_VAR_github_token: ${{ github.token }}
         run: terraform destroy -auto-approve
 
       - name: Capture outputs
