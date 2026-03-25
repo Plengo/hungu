@@ -1,7 +1,11 @@
 """
 tests/test_worker_dedup.py
 ───────────────────────────
-Unit tests for the worker's deduplication helpers (no network/DB needed).
+Unit tests for the worker's deduplication and cleaning helpers (no network/DB needed):
+  - content_hash()   — SHA-256 dedup fingerprint
+  - _parse_rss()     — generic RSS feed parser
+  - _clean_title()   — HTML entity decoding, URL stripping, length capping
+  - _strip_html()    — HTML tag removal and entity decoding
 """
 
 import hashlib
@@ -102,3 +106,85 @@ class TestRSSParser:
     def test_parse_empty_body_returns_empty(self):
         items = worker._parse_rss("")
         assert items == []
+
+
+# ─── _clean_title ────────────────────────────────────────────────────────────
+
+class TestCleanTitle:
+    def test_decodes_apos_entity(self):
+        assert worker._clean_title("It&apos;s a test") == "It's a test"
+
+    def test_decodes_amp_entity(self):
+        assert worker._clean_title("Bread &amp; Butter") == "Bread & Butter"
+
+    def test_decodes_lt_gt_entities(self):
+        result = worker._clean_title("A &lt; B &gt; C")
+        assert "<" in result and ">" in result
+
+    def test_decodes_quot_entity(self):
+        result = worker._clean_title("She said &quot;hello&quot;")
+        assert '"hello"' in result
+
+    def test_decodes_numeric_entity_apos(self):
+        assert worker._clean_title("It&#39;s fine") == "It's fine"
+
+    def test_decodes_nbsp(self):
+        result = worker._clean_title("Word1&nbsp;Word2")
+        assert "Word1" in result and "Word2" in result
+        assert "&nbsp;" not in result
+
+    def test_strips_read_more_with_url(self):
+        # _READMORE_RE only fires when "Read more" is followed by a URL
+        result = worker._clean_title("Big News Read more https://example.com/link")
+        assert "Read more" not in result
+        assert "https://" not in result
+
+    def test_strips_bare_url(self):
+        result = worker._clean_title("Article title https://example.com/link")
+        assert "https://" not in result
+
+    def test_caps_at_200_chars_with_ellipsis(self):
+        long_title = "A" * 250
+        result = worker._clean_title(long_title)
+        assert len(result) <= 200
+        assert result.endswith("…")
+
+    def test_short_title_unchanged_length(self):
+        result = worker._clean_title("Short title")
+        assert result == "Short title"
+
+    def test_returns_none_for_none(self):
+        assert worker._clean_title(None) is None
+
+    def test_returns_empty_for_empty_string(self):
+        assert worker._clean_title("") == ""
+
+    def test_collapses_multiple_spaces(self):
+        result = worker._clean_title("Word   lots    of spaces")
+        assert "  " not in result
+
+    def test_strips_leading_trailing_whitespace(self):
+        result = worker._clean_title("  padded title  ")
+        assert result == result.strip()
+
+
+# ─── _strip_html ─────────────────────────────────────────────────────────────
+
+class TestStripHtml:
+    def test_removes_html_tags(self):
+        result = worker._strip_html("<p>Hello <b>world</b></p>")
+        assert "<" not in result and ">" not in result
+        assert "Hello" in result and "world" in result
+
+    def test_decodes_entities(self):
+        result = worker._strip_html("Bread &amp; butter, &lt;value&gt;")
+        assert "&amp;" not in result
+        assert "&lt;" not in result
+        assert "Bread" in result and "butter" in result
+
+    def test_returns_empty_for_none(self):
+        assert worker._strip_html(None) is None
+
+    def test_collapses_whitespace(self):
+        result = worker._strip_html("<p>  line  </p>")
+        assert "  " not in result
