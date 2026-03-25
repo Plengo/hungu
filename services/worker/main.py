@@ -873,23 +873,32 @@ def _nitter_to_x_url(nitter_url: str) -> str:
             return f"https://x.com/{path}"
     return nitter_url
 
-def _nitter_rss(username: str) -> Optional[str]:
+def _nitter_rss(username: str, dead_instances: set) -> Optional[str]:
     for instance in _NITTER_INSTANCES:
+        if instance in dead_instances:
+            continue
         url  = f"https://{instance}/{username}/rss"
-        body = http_get(url, timeout=10)
+        body = http_get(url, timeout=5)
         if body and "<item>" in body:
             return body
+        else:
+            dead_instances.add(instance)
     return None
 
 def scrape_sa_x() -> list:
     """
     Scrape verified SA official accounts via Nitter RSS feeds.
     Nitter mirrors Twitter timelines as RSS without requiring API auth.
+    Uses a per-cycle circuit breaker: once all Nitter instances fail, bail immediately.
     """
     log.info("Scraping SA verified X accounts via Nitter...")
     results = []
+    dead_instances: set = set()
     for username, category, tier, location in _SA_ACCOUNTS:
-        body = _nitter_rss(username)
+        if len(dead_instances) >= len(_NITTER_INSTANCES):
+            log.warning("All Nitter instances unreachable — skipping remaining X accounts")
+            break
+        body = _nitter_rss(username, dead_instances)
         if not body:
             log.debug("Nitter unavailable for @%s", username)
             continue
