@@ -1262,7 +1262,7 @@ def fast_submit(raw_articles: list) -> list:
 
 # ─── Scheduler ────────────────────────────────────────────────────────────────
 
- SCRAPER_FNS = {
+SCRAPER_FNS = {
     "scrape_bbc_world":    scrape_bbc_world,
     "scrape_sa_breaking":  scrape_sa_breaking,
     "scrape_gov_news":     scrape_gov_news,
@@ -1285,7 +1285,7 @@ def run_scheduler():
         for name, fn_name, interval, fast_mode in SCHEDULE:
             if _should_run(name, interval):
                 is_scraper = fn_name not in ("archive_old_posts", "enrich_old_articles")
-                fn = _SCRAPER_FNS[fn_name]
+                fn = SCRAPER_FNS[fn_name]
                 log.info("▶ Running: %s", name)
                 try:
                     if not is_scraper:
