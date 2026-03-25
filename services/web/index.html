@@ -2122,7 +2122,7 @@ async function postBreakingNews() {
     // 1. Post article with worker key
     const hash = 'manual-' + Date.now();
     const body = { title, summary, source, category, location_tier: tier, location_name: tier === 'global' ? 'Global' : 'South Africa', url: url || 'https://hungu.co.za', image: image || '', impact: '', content_hash: hash };
-    const r1 = await fetch('/api/articles', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Worker-Key': 'd7ed24f7724910db6fc669b4d54f4397' }, body: JSON.stringify(body) });
+    const r1 = await fetch('/api/articles', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Worker-Key': '__WORKER_API_KEY__' }, body: JSON.stringify(body) });
     const d1 = await r1.json();
     if (!r1.ok && d1.status !== 'duplicate') throw new Error(JSON.stringify(d1));
     const articleId = d1.id;
@@ -2435,7 +2435,7 @@ async function postCommunityStory() {
     };
     const r = await fetch('/api/articles', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Worker-Key': 'd7ed24f7724910db6fc669b4d54f4397' },
+      headers: { 'Content-Type': 'application/json', 'X-Worker-Key': '__WORKER_API_KEY__' },
       body: JSON.stringify(body),
     });
     const d = await r.json();
