@@ -27,6 +27,10 @@ terraform {
       source  = "huaweicloud/huaweicloud"
       version = ">= 1.36.0"
     }
+    null = {
+      source  = "hashicorp/null"
+      version = ">= 3.0"
+    }
   }
   # Remote state stored in Huawei OBS (S3-compatible).
   # Config is passed via -backend-config flags — never hardcoded here.
@@ -98,6 +102,68 @@ variable "domain_name" {
   description = "Primary domain for the HUNGU app (used in nginx config and .env)"
   type        = string
   default     = "hungu.co.za"
+}
+
+variable "deepseek_api_key" {
+  description = "DeepSeek API key for the AI worker"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "groq_api_key" {
+  description = "Groq API key for the AI worker"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "mistral_api_key" {
+  description = "Mistral API key for the AI worker"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "openrouter_api_key" {
+  description = "OpenRouter API key for the AI worker"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "cerebras_api_key" {
+  description = "Cerebras API key for the AI worker"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "sambanova_api_key" {
+  description = "SambaNova API key for the AI worker"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "kimi_api_key" {
+  description = "Kimi (Moonshot) API key for the AI worker"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "google_client_id" {
+  description = "Google OAuth Client ID for the app"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "ssh_private_key_path" {
+  description = "Absolute path to the SSH private key used to connect to the server (e.g. ~/.ssh/hungu_rsa)"
+  type        = string
+  default     = "~/.ssh/hungu_rsa"
 }
 
 variable "region" {
@@ -191,6 +257,29 @@ locals {
   # DB connection string uses Docker internal networking
   db_url = "postgresql://${var.db_username}:${var.db_password}@db:5432/hungu"
 
+  # Full .env content — written to the server by null_resource on every apply when keys change
+  env_file_content = join("\n", [
+    "GEMINI_API_KEY=${var.gemini_api_key}",
+    "DEEPSEEK_API_KEY=${var.deepseek_api_key}",
+    "GROQ_API_KEY=${var.groq_api_key}",
+    "MISTRAL_API_KEY=${var.mistral_api_key}",
+    "OPENROUTER_API_KEY=${var.openrouter_api_key}",
+    "CEREBRAS_API_KEY=${var.cerebras_api_key}",
+    "SAMBANOVA_API_KEY=${var.sambanova_api_key}",
+    "KIMI_API_KEY=${var.kimi_api_key}",
+    "GOOGLE_CLIENT_ID=${var.google_client_id}",
+    "DB_URL=${local.db_url}",
+    "DB_USERNAME=${var.db_username}",
+    "DB_PASSWORD=${var.db_password}",
+    "DOMAIN=${var.domain_name}",
+    "JWT_SECRET=${var.jwt_secret}",
+    "WORKER_API_KEY=${var.worker_api_key}",
+    "ADMIN_SECRET=${var.admin_secret}",
+    "SCRAPE_INTERVAL_SECS=3600",
+    "API_BASE_URL=http://api:8000",
+    "",
+  ])
+
   # cloud-init user_data script
   startup_script = <<-SCRIPT
     #!/bin/bash
@@ -222,13 +311,21 @@ locals {
     echo "==> HUNGU: Writing .env..."
     cat > /opt/hungu/.env <<ENV
     GEMINI_API_KEY=${var.gemini_api_key}
+    DEEPSEEK_API_KEY=${var.deepseek_api_key}
+    GROQ_API_KEY=${var.groq_api_key}
+    MISTRAL_API_KEY=${var.mistral_api_key}
+    OPENROUTER_API_KEY=${var.openrouter_api_key}
+    CEREBRAS_API_KEY=${var.cerebras_api_key}
+    SAMBANOVA_API_KEY=${var.sambanova_api_key}
+    KIMI_API_KEY=${var.kimi_api_key}
+    GOOGLE_CLIENT_ID=${var.google_client_id}
     DB_URL=${local.db_url}
     DB_PASSWORD=${var.db_password}
     DB_USERNAME=${var.db_username}
+    DOMAIN=${var.domain_name}
     JWT_SECRET=${var.jwt_secret}
     WORKER_API_KEY=${var.worker_api_key}
     ADMIN_SECRET=${var.admin_secret}
-    DOMAIN=${var.domain_name}
     SCRAPE_INTERVAL_SECS=3600
     API_BASE_URL=http://api:8000
     ENV
@@ -253,6 +350,13 @@ locals {
         restart: always
         environment:
           - GEMINI_API_KEY=${var.gemini_api_key}
+          - DEEPSEEK_API_KEY=${var.deepseek_api_key}
+          - GROQ_API_KEY=${var.groq_api_key}
+          - MISTRAL_API_KEY=${var.mistral_api_key}
+          - OPENROUTER_API_KEY=${var.openrouter_api_key}
+          - CEREBRAS_API_KEY=${var.cerebras_api_key}
+          - SAMBANOVA_API_KEY=${var.sambanova_api_key}
+          - KIMI_API_KEY=${var.kimi_api_key}
           - API_BASE_URL=http://api:8000
           - WORKER_API_KEY=${var.worker_api_key}
           - SCRAPE_INTERVAL_SECS=3600
@@ -326,6 +430,36 @@ resource "huaweicloud_compute_eip_associate" "hungu_eip_bind" {
 # App code deployment (git pull + docker compose up) is done by the
 # GitHub Actions workflow in .github/workflows/terraform.yml.
 # Terraform only manages infrastructure — not application code.
+
+# ─── 7. Live env update — re-runs whenever any API key or secret changes ──────
+# Writes the full .env to the running server and redeploys the containers.
+# Requires ssh_private_key_path to point to the key that can SSH as root.
+
+resource "null_resource" "update_env" {
+  triggers = {
+    env_hash = sha256(local.env_file_content)
+  }
+
+  connection {
+    type        = "ssh"
+    user        = "root"
+    private_key = file(pathexpand(var.ssh_private_key_path))
+    host        = huaweicloud_vpc_eip.hungu_eip.address
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      # Write .env via base64 to safely handle any special characters in key values
+      "echo '${base64encode(local.env_file_content)}' | base64 -d > /opt/hungu/.env",
+      # Ensure git remote uses SSH (survives git checkout --) 
+      "git -C /opt/hungu remote set-url origin git@github.com:Plengo/hungu.git",
+      # Pull latest code and redeploy
+      "cd /opt/hungu && git pull && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build",
+    ]
+  }
+
+  depends_on = [huaweicloud_compute_eip_associate.hungu_eip_bind]
+}
 
 # ─── Outputs ──────────────────────────────────────────────────────────────────
 

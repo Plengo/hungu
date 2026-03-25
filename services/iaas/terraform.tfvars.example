@@ -7,8 +7,10 @@ hw_access_key = "LTAI5xxxxxxxxxxxxxxxx"
 hw_secret_key = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
 # ── SSH Key ───────────────────────────────────────────────────────────────────
-# Paste your public key (cat ~/.ssh/id_rsa.pub)
-ssh_public_key = "ssh-rsa AAAAB3Nza... your-public-key-here"
+# Paste your public key (cat ~/.ssh/hungu_rsa.pub)
+ssh_public_key       = "ssh-rsa AAAAB3Nza... your-public-key-here"
+# Absolute path to private key — used by Terraform to update .env on the server
+ssh_private_key_path = "~/.ssh/hungu_rsa"
 
 # (Optional) Absolute path to private key for automated deployment
 # Leave empty ("") to skip the auto-deploy step and deploy manually.
@@ -21,12 +23,23 @@ db_password  = "Hungu@2026!"
 db_username  = "hungu"
 
 # ── Application Secrets ───────────────────────────────────────────────────────
-# Get from: https://aistudio.google.com/app/apikey
-gemini_api_key = "AIzaSy..."
-
 # Random secret string for JWT signing (generate with: openssl rand -hex 32)
 jwt_secret       = "change_me_to_a_long_random_hex_string"
 worker_api_key   = "change_me_to_a_worker_key_hex_string"
+admin_secret     = "hungu-admin-2026"
+
+google_client_id = "470647697397-xxxx.apps.googleusercontent.com"
+
+# ── AI Provider API Keys (cascade: Gemini → Groq → Mistral → OpenRouter → Cerebras → DeepSeek → Kimi) ──
+# Get from: https://aistudio.google.com/app/apikey
+gemini_api_key     = "AIzaSy..."
+deepseek_api_key   = "sk-..."
+groq_api_key       = "gsk_..."
+mistral_api_key    = "..."
+openrouter_api_key = "sk-or-v1-..."
+cerebras_api_key   = "csk-..."
+sambanova_api_key  = "..."
+kimi_api_key       = "..."
 
 # ── Region / Zone (defaults are fine for South Africa) ───────────────────────
 region            = "af-south-1"
