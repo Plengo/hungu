@@ -4,10 +4,12 @@
 # This config only manages the application deployment via null_resource.
 #
 # On every `terraform apply`:
-#   1. Writes the full .env to the server (all secrets injected from TF vars)
-#   2. git pull --ff-only  (latest code via HTTPS with github_token)
-#   3. Injects GMAPS_API_KEY into index.html (replaces __GMAPS_API_KEY__ placeholder)
-#   4. docker compose up -d --build --remove-orphans
+#   1. Bootstraps the server (installs Docker, clones repo) if fresh
+#   2. Writes the full .env to the server (all secrets from TF vars)
+#   3. git pull --ff-only  (latest code via HTTPS with github_token)
+#   4. Injects GMAPS_API_KEY and WORKER_API_KEY into index.html placeholders
+#   5. docker compose up -d --build --remove-orphans
+#   6. Syncs nginx.host.conf if host nginx is already installed
 #
 # The null_resource triggers on git_sha (every push) AND env_hash (any secret change).
 #
