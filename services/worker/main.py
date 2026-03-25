@@ -1067,8 +1067,8 @@ def enrich_old_articles() -> None:
     log.info("Enriching %d articles in parallel (up to 5 threads)...", len(articles))
     with ThreadPoolExecutor(max_workers=5) as executor:
         futures = {
-            executor.submit(_enrich_single, art, idx): art
-            for idx, art in enumerate(articles)
+            executor.submit(_enrich_single, art): art
+            for art in articles
         }
         success = sum(1 for f in as_completed(futures) if f.result()[1])
     log.info("Enriched %d/%d articles", success, len(articles))
