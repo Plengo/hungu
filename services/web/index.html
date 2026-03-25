@@ -57,11 +57,7 @@
     /* Feed: single Facebook-style column */
     #feed-list { display: block; }
     @media (min-width: 680px) { #feed-list { max-width: 680px; margin-left: auto; margin-right: auto; } }
-    /* Admin tabs */
-    .admin-tab { flex-shrink:0; padding:0.45rem 1rem; border-radius:999px; font-size:0.72rem; font-weight:800; color:#64748b; background:transparent; border:none; cursor:pointer; white-space:nowrap; }
-    .admin-tab.active-tab { background:#4a90a4; color:#fff; }
-    .admin-panel { display:block; }
-    .admin-panel.hidden { display:none; }
+
   </style>
 </head>
 <body class="bg-[#4b5d6c] min-h-screen">
@@ -551,15 +547,7 @@
         </div>
       </div>
 
-      <!-- Platform Admin -->
-      <div class="bg-white rounded-3xl p-5 shadow-sm">
-        <h2 class="text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-3">Platform Admin</h2>
-        <button onclick="showView('admin')" class="w-full flex items-center gap-3 bg-slate-800 rounded-2xl px-4 py-3.5 press">
-          <span class="text-xl">🛠</span>
-          <span class="font-bold text-white text-sm flex-1 text-left">Admin Dashboard &amp; Stats</span>
-          <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
-        </button>
-      </div>
+
 
     </div>
 
@@ -573,198 +561,6 @@
     </footer>
   </div><!-- /view-profile -->
 
-  <!-- ── ADMIN DASHBOARD ────────────────────────────────────────────────────── -->
-  <div id="view-admin" class="view hidden flex flex-col min-h-screen bg-slate-100 overflow-y-auto scroll-hide">
-    <header class="px-6 pt-10 pb-6 bg-[#4b5d6c] flex-shrink-0">
-      <button onclick="showView('profile')" class="text-white/70 text-sm font-semibold flex items-center gap-1.5 mb-4 press">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg> Back
-      </button>
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-xl">🛠</div>
-        <div>
-          <h1 class="text-white text-xl font-extrabold">Admin Dashboard</h1>
-          <p class="text-white/50 text-xs">Platform analytics &amp; insights</p>
-        </div>
-      </div>
-    </header>
-
-    <!-- Lock screen -->
-    <div id="admin-lock" class="flex-1 flex flex-col items-center justify-center px-8 py-12">
-      <div class="bg-white rounded-3xl p-8 shadow-xl w-full max-w-sm text-center">
-        <div class="text-5xl mb-4">🔐</div>
-        <h2 class="text-xl font-extrabold text-slate-800 mb-1">Admin Access</h2>
-        <p class="text-sm text-slate-400 mb-6">Enter the admin key to view platform stats</p>
-        <input id="admin-key-input" type="password" placeholder="Admin key…"
-          class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold outline-none focus:border-[#4b5d6c] mb-4"
-          onkeydown="if(event.key==='Enter') unlockAdmin()"/>
-        <button onclick="unlockAdmin()" class="w-full bg-[#4b5d6c] text-white py-3.5 rounded-xl font-bold text-sm press">Unlock</button>
-        <p id="admin-auth-err" class="text-xs text-red-400 mt-3 hidden">Incorrect key — check your ADMIN_SECRET</p>
-      </div>
-    </div>
-
-    <!-- Dashboard -->
-    <div id="admin-content" class="hidden flex flex-col min-h-0">
-
-      <!-- Tab bar -->
-      <div class="flex gap-1 px-4 pt-4 overflow-x-auto scroll-hide flex-shrink-0">
-        <button onclick="switchAdminTab('stats')"    id="atab-stats"    class="admin-tab active-tab">📊 Stats</button>
-        <button onclick="switchAdminTab('community')" id="atab-community" class="admin-tab">📖 Community</button>
-        <button onclick="switchAdminTab('breaking')" id="atab-breaking" class="admin-tab">🔴 Breaking</button>
-        <button onclick="switchAdminTab('sources')"  id="atab-sources"  class="admin-tab">🔗 Scrape URLs</button>
-        <button onclick="switchAdminTab('stories')"  id="atab-stories"  class="admin-tab">📰 Story Links</button>
-      </div>
-
-      <!-- ── Tab: Stats ── -->
-      <div id="apanel-stats" class="admin-panel px-4 pt-3 pb-24 space-y-4">
-        <!-- Visitor cards -->
-        <div class="bg-white rounded-3xl p-5 shadow-sm">
-          <div class="flex items-center justify-between mb-4">
-            <h2 class="text-xs font-extrabold text-slate-400 uppercase tracking-widest">Visitors</h2>
-            <button onclick="loadAdminStats()" class="text-xs text-[#4a90a4] font-bold press">↻ Refresh</button>
-          </div>
-          <div class="grid grid-cols-2 gap-3" id="admin-visitor-grid">
-            <div class="bg-slate-50 rounded-2xl h-20 animate-pulse"></div>
-            <div class="bg-slate-50 rounded-2xl h-20 animate-pulse"></div>
-            <div class="bg-slate-50 rounded-2xl h-20 animate-pulse"></div>
-            <div class="bg-slate-50 rounded-2xl h-20 animate-pulse"></div>
-          </div>
-        </div>
-        <!-- Content & engagement -->
-        <div class="bg-white rounded-3xl p-5 shadow-sm">
-          <h2 class="text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-4">Content &amp; Engagement</h2>
-          <div id="admin-content-stats" class="bg-slate-50 rounded-2xl h-24 animate-pulse"></div>
-        </div>
-        <!-- Category breakdown -->
-        <div class="bg-white rounded-3xl p-5 shadow-sm">
-          <h2 class="text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-4">Articles by Category</h2>
-          <div id="admin-categories" class="space-y-2"><div class="bg-slate-50 rounded-2xl h-28 animate-pulse"></div></div>
-        </div>
-        <!-- Recent articles -->
-        <div class="bg-white rounded-3xl p-5 shadow-sm">
-          <h2 class="text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-3">Latest Submissions</h2>
-          <div id="admin-recent" class="space-y-1">
-            <div class="bg-slate-50 rounded-xl h-10 animate-pulse"></div>
-            <div class="bg-slate-50 rounded-xl h-10 animate-pulse"></div>
-            <div class="bg-slate-50 rounded-xl h-10 animate-pulse"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ── Tab: Community Story ── -->
-      <div id="apanel-community" class="admin-panel hidden px-4 pt-3 pb-24">
-        <div class="bg-white rounded-3xl p-5 shadow-sm border-2 border-[#87ceeb]/50">
-          <h2 class="text-xs font-extrabold text-[#4a90a4] uppercase tracking-widest mb-1">📖 Post Community Story</h2>
-          <p class="text-[11px] text-slate-400 mb-3">For reports spotted on Facebook/WhatsApp community groups.</p>
-          <div class="space-y-3">
-            <input id="cs-title" type="text" placeholder="Headline *" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-semibold outline-none focus:border-[#4a90a4]"/>
-            <textarea id="cs-summary" placeholder="What happened? Include all details reported. *" rows="3" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#4a90a4] resize-none"></textarea>
-            <input id="cs-source" type="text" placeholder="Source e.g. 'Menlyn Residents FB Group'" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#4a90a4]"/>
-            <div class="flex gap-2">
-              <input id="cs-suburb" type="text" placeholder="Suburb e.g. Menlyn" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#4a90a4]"/>
-              <input id="cs-city" type="text" placeholder="City e.g. Pretoria" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#4a90a4]"/>
-            </div>
-            <input id="cs-image" type="url" placeholder="Image URL (optional)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#4a90a4]"/>
-            <select id="cs-category" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#4a90a4]">
-              <option value="Community">Community</option>
-              <option value="Crime">Crime</option>
-              <option value="Local">Local</option>
-              <option value="Health">Health</option>
-              <option value="Economy">Economy</option>
-              <option value="Entertainment">Entertainment</option>
-            </select>
-            <button onclick="postCommunityStory()" class="w-full bg-[#4a90a4] text-white py-3 rounded-xl font-extrabold text-sm press flex items-center justify-center gap-2">
-              📖 Publish as Community Story
-            </button>
-            <p id="cs-status" class="text-xs text-center font-semibold hidden"></p>
-          </div>
-        </div>
-      </div>
-
-      <!-- ── Tab: Breaking News ── -->
-      <div id="apanel-breaking" class="admin-panel hidden px-4 pt-3 pb-24">
-        <div class="bg-white rounded-3xl p-5 shadow-sm border-2 border-red-100">
-          <h2 class="text-xs font-extrabold text-red-400 uppercase tracking-widest mb-3">🔴 Post Breaking News</h2>
-          <div class="space-y-3">
-            <input id="bn-title" type="text" placeholder="Headline *" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-semibold outline-none focus:border-red-400"/>
-            <textarea id="bn-summary" placeholder="Summary *" rows="3" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-red-400 resize-none"></textarea>
-            <input id="bn-url" type="url" placeholder="Source URL (optional)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-red-400"/>
-            <input id="bn-source" type="text" placeholder="Source name e.g. AP News" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-red-400"/>
-            <input id="bn-image" type="url" placeholder="Image URL (optional)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-red-400"/>
-            <div class="flex gap-2">
-              <select id="bn-category" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-red-400">
-                <option value="General">General</option>
-                <option value="Politics">Politics</option>
-                <option value="Crime">Crime</option>
-                <option value="Economy">Economy</option>
-                <option value="Health">Health</option>
-                <option value="Entertainment">Entertainment</option>
-                <option value="Environment">Environment</option>
-                <option value="Wars">Wars</option>
-                <option value="Local">Local</option>
-              </select>
-              <select id="bn-tier" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-red-400">
-                <option value="national">National</option>
-                <option value="global">Global</option>
-                <option value="provincial">Provincial</option>
-                <option value="local">Local</option>
-              </select>
-            </div>
-            <button onclick="postBreakingNews()" class="w-full bg-red-600 text-white py-3 rounded-xl font-extrabold text-sm press flex items-center justify-center gap-2">
-              🔴 Publish as Breaking News
-            </button>
-            <p id="bn-status" class="text-xs text-center font-semibold hidden"></p>
-          </div>
-        </div>
-      </div>
-
-      <!-- ── Tab: Scrape URLs ── -->
-      <div id="apanel-sources" class="admin-panel hidden px-4 pt-3 pb-24 space-y-4">
-        <div class="bg-white rounded-3xl p-5 shadow-sm border-2 border-purple-100">
-          <h2 class="text-xs font-extrabold text-purple-500 uppercase tracking-widest mb-1">🔗 Add Scrape Source</h2>
-          <p class="text-[11px] text-slate-400 mb-3">Paste an RSS feed or article page URL. The worker will scrape it every 5 minutes.</p>
-          <div class="space-y-3">
-            <input id="src-url" type="url" placeholder="URL e.g. https://example.com/rss.xml *" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-purple-400"/>
-            <input id="src-label" type="text" placeholder="Label e.g. 'My Local Blog'" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-purple-400"/>
-            <button onclick="addScrapeSource()" class="w-full bg-purple-600 text-white py-3 rounded-xl font-extrabold text-sm press">
-              ➕ Add to Scrape List
-            </button>
-            <p id="src-status" class="text-xs text-center font-semibold hidden"></p>
-          </div>
-        </div>
-        <div class="bg-white rounded-3xl p-5 shadow-sm">
-          <div class="flex items-center justify-between mb-3">
-            <h2 class="text-xs font-extrabold text-slate-400 uppercase tracking-widest">Current Sources</h2>
-            <button onclick="loadScrapeSources()" class="text-xs text-[#4a90a4] font-bold press">↻ Refresh</button>
-          </div>
-          <div id="scrape-sources-list" class="space-y-2 text-sm text-slate-400 italic">Loading…</div>
-        </div>
-      </div>
-
-      <!-- ── Tab: Story Links ── -->
-      <div id="apanel-stories" class="admin-panel hidden px-4 pt-3 pb-24 space-y-4">
-        <div class="bg-white rounded-3xl p-5 shadow-sm border-2 border-amber-100">
-          <h2 class="text-xs font-extrabold text-amber-500 uppercase tracking-widest mb-1">📰 Add Story Links</h2>
-          <p class="text-[11px] text-slate-400 mb-3">Paste one URL per line. The worker will fetch each page, extract the article and publish it.</p>
-          <div class="space-y-3">
-            <textarea id="sl-urls" rows="5" placeholder="https://example.com/article-1&#10;https://example.com/article-2" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-amber-400 resize-none font-mono"></textarea>
-            <input id="sl-label" type="text" placeholder="Source label (optional)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-amber-400"/>
-            <button onclick="addStoryLinks()" class="w-full bg-amber-500 text-white py-3 rounded-xl font-extrabold text-sm press">
-              📰 Queue for Publishing
-            </button>
-            <p id="sl-status" class="text-xs text-center font-semibold hidden"></p>
-          </div>
-        </div>
-        <div class="bg-white rounded-3xl p-5 shadow-sm">
-          <div class="flex items-center justify-between mb-3">
-            <h2 class="text-xs font-extrabold text-slate-400 uppercase tracking-widest">Queue</h2>
-            <button onclick="loadStoryQueue()" class="text-xs text-[#4a90a4] font-bold press">↻ Refresh</button>
-          </div>
-          <div id="story-queue-list" class="space-y-2 text-sm text-slate-400 italic">Loading…</div>
-        </div>
-      </div>
-
-    </div><!-- /admin-content -->
-  </div><!-- /view-admin -->
 
 </div><!-- /app -->
 
@@ -886,7 +682,7 @@ function showView(name, opts = {}) {
   }
   if (name === 'profile') renderProfile();
   if (name === 'saved')   renderSaved();
-  if (name === 'admin')   openAdminView();
+
 }
 
 // ─── Auth & Init ─────────────────────────────────────────────────────────────
@@ -1357,12 +1153,6 @@ async function openArticle(id) {
   const img = articleImg(a);
   const jwLink = a.jwLink || `https://www.jw.org/en/search/?q=${encodeURIComponent((a.prophecy.verse || '') + ' end times prophecy')}`;
 
-  const adminBtn = _adminKey ? `
-    <div class="flex items-center gap-2">
-      <button onclick="deleteArticle('${a.id}')" class="bg-red-600 text-white px-3 py-1.5 rounded-full text-[10px] font-bold flex items-center gap-1 press shadow">🗑️ Delete</button>
-      <button onclick="rescanArticle('${a.id}')" class="bg-amber-500 text-white px-3 py-1.5 rounded-full text-[10px] font-bold flex items-center gap-1 press shadow">🔄 Rescan</button>
-    </div>` : '';
-
   document.getElementById('detail-content').innerHTML = `
     <!-- Sticky top bar -->
     <div class="sticky top-0 z-40 flex items-center justify-between px-4 sm:px-8 py-3 bg-white/95 backdrop-blur border-b border-slate-100">
@@ -1370,7 +1160,6 @@ async function openArticle(id) {
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg> Back
       </button>
       <div class="flex items-center gap-2">
-        ${adminBtn}
         <button onclick="speakText(_buildTtsText(norm(getArticleById('${a.id}'))), '${a.id}')" class="bg-[#87ceeb] text-white px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1 press">
           🔊 Listen
         </button>
@@ -1429,45 +1218,7 @@ async function openArticle(id) {
   if (dbod) dbod.parentElement.scrollTop = 0;
 }
 
-async function deleteArticle(id) {
-  if (!confirm("Are you sure you want to completely delete this article? The worker will rescan the site later and fix mistakes.")) return;
-  try {
-    const res = await fetch(`/api/admin/articles/${id}`, {
-      method: 'DELETE',
-      headers: { 'X-Admin-Key': _adminKey }
-    });
-    if (!res.ok) throw new Error(await res.text());
-    alert('Article deleted.');
-    // Refresh feed
-    state.articles = state.articles.filter(a => String(a.id) !== String(id));
-    showView('feed');
-    renderFeed();
-  } catch (err) {
-    alert("Error: " + err.message);
-  }
-}
 
-async function rescanArticle(id) {
-  if (!confirm('This will wipe the AI summary and re-enrich the article. Continue?')) return;
-  try {
-    const res = await fetch(`/api/admin/articles/${id}/rescan`, {
-      method: 'PATCH',
-      headers: { 'X-Admin-Key': _adminKey }
-    });
-    if (!res.ok) throw new Error(await res.text());
-    alert('Article reset for rescan.');
-    // Refresh article in state if it's there
-    const a = getArticleById(id);
-    if (a) {
-      a.summary = "";
-      a.actions_now = "";
-    }
-    showView('feed');
-    renderFeed();
-  } catch(e) {
-    alert('Error: ' + e.message);
-  }
-}
 
 function shareArticle(id) {
   const raw = getArticleById(id);
@@ -1916,230 +1667,6 @@ function toggleReading() {
     : '<path d="M8 5v14l11-7z"/>';
 }
 
-// ─── Admin Dashboard ──────────────────────────────────────────────────────────
-let _adminKey = '';
-
-function openAdminView() {
-  const lock = document.getElementById('admin-lock');
-  const content = document.getElementById('admin-content');
-  if (_adminKey) { lock.classList.add('hidden'); content.classList.remove('hidden'); loadAdminStats(); }
-  else { lock.classList.remove('hidden'); content.classList.add('hidden'); }
-}
-
-async function unlockAdmin() {
-  const inp = document.getElementById('admin-key-input');
-  const err = document.getElementById('admin-auth-err');
-  const key = inp.value.trim();
-  if (!key) return;
-  err.classList.add('hidden');
-  try {
-    const res = await fetch(`${API_URL}/admin/dashboard`, { headers: { 'X-Admin-Key': key } });
-    if (!res.ok) { err.classList.remove('hidden'); return; }
-    _adminKey = key;
-    document.getElementById('admin-lock').classList.add('hidden');
-    document.getElementById('admin-content').classList.remove('hidden');
-    const data = await res.json();
-    renderAdminData(data);
-  } catch (e) { err.classList.remove('hidden'); }
-}
-
-async function loadAdminStats() {
-  if (!_adminKey) return;
-  try {
-    const res = await fetch(`${API_URL}/admin/dashboard`, { headers: { 'X-Admin-Key': _adminKey } });
-    if (res.ok) renderAdminData(await res.json());
-  } catch (e) { /* offline */ }
-}
-
-function renderAdminData(d) {
-  document.getElementById('admin-visitor-grid').innerHTML = [
-    ['👁', 'Total Views', d.total_views],
-    ['👤', 'Unique Visitors', d.unique_visitors],
-    ['🟢', 'Active Now', d.active_last_15min],
-    ['📅', 'Daily Active', d.daily_active],
-  ].map(([icon, label, val]) =>
-    `<div class="bg-slate-50 rounded-2xl p-4 text-center"><div class="text-2xl mb-1">${icon}</div><div class="text-lg font-extrabold text-slate-800">${val.toLocaleString()}</div><div class="text-[10px] text-slate-400 font-semibold">${label}</div></div>`
-  ).join('');
-
-  document.getElementById('admin-content-stats').innerHTML =
-    `<div class="grid grid-cols-3 gap-3 text-center">` +
-    [['📰', 'Articles', d.total_articles], ['✨', 'Enriched', d.articles_enriched], ['🔖', 'Bookmarks', d.total_bookmarks]]
-      .map(([i,l,v]) => `<div><div class="text-xl">${i}</div><div class="text-lg font-extrabold text-slate-800">${v}</div><div class="text-[10px] text-slate-400 font-semibold">${l}</div></div>`).join('') +
-    `</div>`;
-
-  const cats = d.articles_by_category || {};
-  const maxCat = Math.max(...Object.values(cats), 1);
-  document.getElementById('admin-categories').innerHTML = Object.entries(cats)
-    .sort((a, b) => b[1] - a[1])
-    .map(([cat, n]) => `<div class="flex items-center gap-3"><span class="text-xs font-bold text-slate-600 w-28 truncate">${cat}</span><div class="flex-1 bg-slate-100 rounded-full h-5 overflow-hidden"><div class="h-full bg-[#4a90a4] rounded-full" style="width:${(n/maxCat*100).toFixed(0)}%"></div></div><span class="text-xs font-bold text-slate-500 w-8 text-right">${n}</span></div>`)
-    .join('');
-
-  document.getElementById('admin-recent').innerHTML = (d.recent_articles || [])
-    .map(a => `
-      <div class="flex items-center gap-2 py-2 border-b border-slate-100 last:border-0">
-        <span class="text-xs ${a.enriched ? 'text-green-500' : 'text-slate-300'}">${a.enriched ? '✅' : '⏳'}</span>
-        <span class="text-xs font-semibold text-slate-700 flex-1 truncate">${a.title}</span>
-        <span class="text-[10px] text-slate-400 mr-1">${a.source}</span>
-        <div class="flex gap-1">
-          <button onclick="adminToggleUrgent('${a.id}',this)" class="text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${a.urgent ? 'bg-red-600 text-white border-red-600' : 'bg-white text-slate-400 border-slate-200'}">${a.urgent ? '🔴' : '⚪'}</button>
-          <button onclick="rescanArticle('${a.id}')" class="text-[10px] font-bold px-1.5 py-0.5 rounded-full border bg-white text-amber-500 border-amber-200">🔄</button>
-          <button onclick="deleteArticle('${a.id}')" class="text-[10px] font-bold px-1.5 py-0.5 rounded-full border bg-white text-red-500 border-red-200">🗑️</button>
-        </div>
-      </div>`).join('');
-}
-
-// ─── Admin tabs ───────────────────────────────────────────────────────────────
-function switchAdminTab(name) {
-  ['stats','community','breaking','sources','stories'].forEach(t => {
-    document.getElementById('apanel-' + t).classList.toggle('hidden', t !== name);
-    document.getElementById('atab-' + t).classList.toggle('active-tab', t === name);
-  });
-  if (name === 'sources')  loadScrapeSources();
-  if (name === 'stories')  loadStoryQueue();
-}
-
-// ─── Scrape Sources ───────────────────────────────────────────────────────────
-async function loadScrapeSources() {
-  const el = document.getElementById('scrape-sources-list');
-  if (!el) return;
-  el.innerHTML = '<span class="italic text-slate-400 text-xs">Loading…</span>';
-  try {
-    const res = await fetch(`${API_URL}/admin/scrape-sources`, { headers: { 'X-Admin-Key': _adminKey } });
-    if (!res.ok) { el.innerHTML = '<span class="text-red-400 text-xs">Error loading sources</span>'; return; }
-    const data = await res.json();
-    if (!data.length) { el.innerHTML = '<span class="text-slate-400 text-xs italic">No sources yet.</span>'; return; }
-    el.innerHTML = data.map(s => `
-      <div class="flex items-center gap-2 py-2 border-b border-slate-100 last:border-0">
-        <div class="flex-1 min-w-0">
-          <div class="text-xs font-bold text-slate-700 truncate">${s.label || s.url}</div>
-          <div class="text-[10px] text-slate-400 truncate">${s.url}</div>
-        </div>
-        <button onclick="deleteScrapeSource('${s.id}')" class="text-[10px] font-bold px-2 py-1 rounded-lg bg-red-50 text-red-500 border border-red-200 press flex-shrink-0">✕</button>
-      </div>`).join('');
-  } catch (e) { el.innerHTML = '<span class="text-red-400 text-xs">Network error</span>'; }
-}
-
-async function addScrapeSource() {
-  const url   = document.getElementById('src-url').value.trim();
-  const label = document.getElementById('src-label').value.trim();
-  const status = document.getElementById('src-status');
-  if (!url) { status.textContent = '⚠️ URL is required'; status.className = 'text-xs text-center font-semibold text-red-500'; status.classList.remove('hidden'); return; }
-  status.textContent = 'Saving…'; status.className = 'text-xs text-center font-semibold text-slate-400'; status.classList.remove('hidden');
-  try {
-    const res = await fetch(`${API_URL}/admin/scrape-sources`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Admin-Key': _adminKey },
-      body: JSON.stringify({ url, label })
-    });
-    if (!res.ok) { status.textContent = '❌ ' + (await res.text()); status.className = 'text-xs text-center font-semibold text-red-500'; return; }
-    status.textContent = '✅ Added!'; status.className = 'text-xs text-center font-semibold text-green-600';
-    document.getElementById('src-url').value = '';
-    document.getElementById('src-label').value = '';
-    loadScrapeSources();
-  } catch (e) { status.textContent = '❌ Network error'; status.className = 'text-xs text-center font-semibold text-red-500'; }
-}
-
-async function deleteScrapeSource(id) {
-  if (!confirm('Remove this scrape source?')) return;
-  try {
-    await fetch(`${API_URL}/admin/scrape-sources/${id}`, { method: 'DELETE', headers: { 'X-Admin-Key': _adminKey } });
-    loadScrapeSources();
-  } catch (e) { alert('Error removing source'); }
-}
-
-// ─── Story Queue ──────────────────────────────────────────────────────────────
-async function loadStoryQueue() {
-  const el = document.getElementById('story-queue-list');
-  if (!el) return;
-  el.innerHTML = '<span class="italic text-slate-400 text-xs">Loading…</span>';
-  try {
-    const res = await fetch(`${API_URL}/admin/story-queue`, { headers: { 'X-Admin-Key': _adminKey } });
-    if (!res.ok) { el.innerHTML = '<span class="text-red-400 text-xs">Error</span>'; return; }
-    const data = await res.json();
-    if (!data.length) { el.innerHTML = '<span class="text-slate-400 text-xs italic">Queue is empty.</span>'; return; }
-    const badge = s => s === 'done' ? '✅' : s === 'failed' ? '❌' : '⏳';
-    el.innerHTML = data.map(q => `
-      <div class="flex items-center gap-2 py-2 border-b border-slate-100 last:border-0">
-        <span class="text-base">${badge(q.status)}</span>
-        <div class="flex-1 min-w-0">
-          <div class="text-[10px] text-slate-400 truncate">${q.url}</div>
-          ${q.label ? `<div class="text-[10px] text-slate-500">${q.label}</div>` : ''}
-        </div>
-        <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full ${q.status==='done'?'bg-green-50 text-green-600':q.status==='failed'?'bg-red-50 text-red-500':'bg-amber-50 text-amber-500'}">${q.status}</span>
-      </div>`).join('');
-  } catch (e) { el.innerHTML = '<span class="text-red-400 text-xs">Network error</span>'; }
-}
-
-async function addStoryLinks() {
-  const raw   = document.getElementById('sl-urls').value.trim();
-  const label = document.getElementById('sl-label').value.trim();
-  const status = document.getElementById('sl-status');
-  const urls  = raw.split('\n').map(u => u.trim()).filter(u => u.startsWith('http'));
-  if (!urls.length) { status.textContent = '⚠️ Enter at least one URL'; status.className = 'text-xs text-center font-semibold text-red-500'; status.classList.remove('hidden'); return; }
-  status.textContent = 'Queueing…'; status.className = 'text-xs text-center font-semibold text-slate-400'; status.classList.remove('hidden');
-  try {
-    const res = await fetch(`${API_URL}/admin/story-queue`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Admin-Key': _adminKey },
-      body: JSON.stringify({ urls, label })
-    });
-    if (!res.ok) { status.textContent = '❌ ' + (await res.text()); status.className = 'text-xs text-center font-semibold text-red-500'; return; }
-    const d = await res.json();
-    status.textContent = `✅ Queued ${d.added} link${d.added !== 1 ? 's' : ''}`;
-    status.className = 'text-xs text-center font-semibold text-green-600';
-    document.getElementById('sl-urls').value = '';
-    document.getElementById('sl-label').value = '';
-    loadStoryQueue();
-  } catch (e) { status.textContent = '❌ Network error'; status.className = 'text-xs text-center font-semibold text-red-500'; }
-}
-
-async function adminToggleUrgent(id, btn) {
-  const key = document.getElementById('admin-key-input')?.value || '';
-  const res = await fetch(`/api/admin/articles/${id}/urgent`, { method: 'PATCH', headers: { 'X-Admin-Key': key } });
-  if (!res.ok) { alert('Error: ' + await res.text()); return; }
-  const data = await res.json();
-  btn.className = `text-[11px] font-bold px-2 py-0.5 rounded-full border ${data.urgent ? 'bg-red-600 text-white border-red-600' : 'bg-white text-slate-400 border-slate-200'}`;
-  btn.textContent = data.urgent ? '🔴 URGENT' : '⚪ urgent';
-}
-
-// ─── Post Breaking News (admin) ───────────────────────────────────────────────
-async function postBreakingNews() {
-  const title   = document.getElementById('bn-title').value.trim();
-  const summary = document.getElementById('bn-summary').value.trim();
-  const url     = document.getElementById('bn-url').value.trim();
-  const source  = document.getElementById('bn-source').value.trim() || 'HUNGU';
-  const image   = document.getElementById('bn-image').value.trim();
-  const category = document.getElementById('bn-category').value;
-  const tier    = document.getElementById('bn-tier').value;
-  const key     = document.getElementById('admin-key-input')?.value || '';
-  const status  = document.getElementById('bn-status');
-
-  if (!title || !summary) { status.textContent = '⚠️ Headline and summary are required.'; status.className = 'text-xs text-center font-semibold text-red-500'; status.classList.remove('hidden'); return; }
-
-  status.textContent = 'Publishing…'; status.className = 'text-xs text-center font-semibold text-slate-400'; status.classList.remove('hidden');
-
-  try {
-    // 1. Post article with worker key
-    const hash = 'manual-' + Date.now();
-    const body = { title, summary, source, category, location_tier: tier, location_name: tier === 'global' ? 'Global' : 'South Africa', url: url || 'https://hungu.co.za', image: image || '', impact: '', content_hash: hash };
-    const r1 = await fetch('/api/articles', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Worker-Key': '__WORKER_API_KEY__' }, body: JSON.stringify(body) });
-    const d1 = await r1.json();
-    if (!r1.ok && d1.status !== 'duplicate') throw new Error(JSON.stringify(d1));
-    const articleId = d1.id;
-
-    // 2. Mark urgent via admin
-    const r2 = await fetch(`/api/admin/articles/${articleId}/urgent`, { method: 'PATCH', headers: { 'X-Admin-Key': key } });
-    if (!r2.ok) throw new Error(await r2.text());
-
-    status.textContent = '✅ Published and marked as BREAKING!'; status.className = 'text-xs text-center font-semibold text-green-600';
-    ['bn-title','bn-summary','bn-url','bn-source','bn-image'].forEach(id => document.getElementById(id).value = '');
-    // Refresh ticker
-    await loadBreakingTicker();
-  } catch(e) {
-    status.textContent = '❌ Error: ' + e.message; status.className = 'text-xs text-center font-semibold text-red-500';
-  }
-}
-
 // ─── Community Stories ───────────────────────────────────────────────────────
 let _stories = [];
 let _storyIdx = 0;
@@ -2404,51 +1931,6 @@ function _storyAddSwipe(el) {
     const dx = e.changedTouches[0].clientX - _storyTouchX;
     if (Math.abs(dx) > 45) { dx < 0 ? _storyNext() : _storyPrev(); }
   };
-}
-
-async function postCommunityStory() {
-  const title    = document.getElementById('cs-title').value.trim();
-  const summary  = document.getElementById('cs-summary').value.trim();
-  const source   = document.getElementById('cs-source').value.trim() || 'Community Report';
-  const suburb   = document.getElementById('cs-suburb').value.trim();
-  const city     = document.getElementById('cs-city').value.trim();
-  const image    = document.getElementById('cs-image').value.trim();
-  const category = document.getElementById('cs-category').value;
-  const statusEl = document.getElementById('cs-status');
-
-  if (!title || !summary) {
-    statusEl.textContent = '⚠️ Headline and summary required.';
-    statusEl.className = 'text-xs text-center font-semibold text-red-500';
-    statusEl.classList.remove('hidden'); return;
-  }
-  statusEl.textContent = 'Publishing…';
-  statusEl.className = 'text-xs text-center font-semibold text-slate-400';
-  statusEl.classList.remove('hidden');
-  try {
-    const locationName = suburb || city || 'South Africa';
-    const tier = suburb ? 'Suburb' : (city ? 'City' : 'Country');
-    const hash = 'cs-' + Date.now() + '-' + Math.random().toString(36).slice(2,7);
-    const body = {
-      title, summary, source, category,
-      location_tier: tier, location_name: locationName,
-      url: `https://hungu.co.za`, image: image || '', impact: '', content_hash: hash,
-    };
-    const r = await fetch('/api/articles', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Worker-Key': '__WORKER_API_KEY__' },
-      body: JSON.stringify(body),
-    });
-    const d = await r.json();
-    if (!r.ok && d.status !== 'duplicate') throw new Error(JSON.stringify(d));
-    statusEl.textContent = '✅ Community story published!';
-    statusEl.className = 'text-xs text-center font-semibold text-green-600';
-    ['cs-title','cs-summary','cs-source','cs-suburb','cs-city','cs-image'].forEach(id => { document.getElementById(id).value = ''; });
-    state.articles = []; await loadApiArticles();
-    await loadStories();
-  } catch(e) {
-    statusEl.textContent = '❌ ' + e.message;
-    statusEl.className = 'text-xs text-center font-semibold text-red-500';
-  }
 }
 
 // ── Breaking News Ticker ─────────────────────────────────────────────────────

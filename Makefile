@@ -50,7 +50,7 @@ server:
 	@echo "▶  Stopping local containers..."
 	docker compose -f docker-compose.yml down
 	@echo "▶  Deploying to server $(SERVER_HOST)..."
-	$(SERVER_SSH) "cd /opt/hungu && git pull --ff-only && sed -i 's|__GMAPS_API_KEY__|$(GMAPS_API_KEY)|g' services/web/index.html && sed -i 's|__WORKER_API_KEY__|$(WORKER_API_KEY)|g' services/web/index.html && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build --remove-orphans"
+	$(SERVER_SSH) "cd /opt/hungu && git pull --ff-only && sed -i 's|__GMAPS_API_KEY__|$(GMAPS_API_KEY)|g' services/web/index.html && sed -i 's|__WORKER_API_KEY__|$(WORKER_API_KEY)|g' services/web/index.html && sed -i 's|__WORKER_API_KEY__|$(WORKER_API_KEY)|g' services/web/admin.html && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build --remove-orphans"
 	@echo "✓  Server deploy complete. Local containers are down."
 
 shell-api:
