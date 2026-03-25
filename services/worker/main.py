@@ -202,8 +202,9 @@ def call_ai(prompt: str) -> Optional[dict]:
         oai_providers.append(("Cerebras-Qwen3", lambda p: _call_openai_compatible(p, CEREBRAS_API_KEY, "https://api.cerebras.ai/v1", "qwen-3-235b-a22b-instruct-2507")))
     if SAMBANOVA_API_KEY:
         oai_providers.append(("SambaNova-Llama3.3", lambda p: _call_openai_compatible(p, SAMBANOVA_API_KEY, "https://api.sambanova.ai/v1", "Meta-Llama-3.3-70B-Instruct")))
-    if DEEPSEEK_API_KEY:
-        oai_providers.append(("DeepSeek", lambda p: _call_openai_compatible(p, DEEPSEEK_API_KEY, "https://api.deepseek.com", "deepseek-chat")))
+    # DeepSeek: 402 Payment Required (free credits exhausted) — disabled
+    # if DEEPSEEK_API_KEY:
+    #     oai_providers.append(("DeepSeek", lambda p: _call_openai_compatible(p, DEEPSEEK_API_KEY, "https://api.deepseek.com", "deepseek-chat")))
 
     # Shuffle each group, then combine: Gemini first (free, highest quality), then shuffled others
     random.shuffle(gemini_providers)
@@ -348,6 +349,8 @@ _HASHTAG_TAIL = re.compile(r'(\s+#\w+)+\s*$')
 def _clean_title(text: str) -> str:
     if not text:
         return text
+    # Decode HTML entities (&apos; &amp; &#39; etc) before any other cleaning
+    text = text.replace('&apos;', "'").replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>').replace('&quot;', '"').replace('&#39;', "'").replace('&nbsp;', ' ')
     text = _READMORE_RE.sub('', text).strip()
     text = _URL_RE.sub('', text).strip()
     text = _HASHTAG_TAIL.sub('', text).strip()
@@ -486,43 +489,43 @@ def scrape_bbc_world() -> list:
 # ── SA Breaking news ───────────────────────────────────────────────────────────
 
 def scrape_sa_breaking() -> list:
-    """Daily Maverick + News24 — SA breaking news (15-min interval)."""
-    log.info("Scraping SA breaking news (Daily Maverick + News24)...")
+    """News24 — SA breaking news (dailymaverick.co.za blocks RSS with 403)."""
+    log.info("Scraping SA breaking news (News24)...")
     results = []
-
-    # Daily Maverick
-    body = http_get("https://www.dailymaverick.co.za/feed/")
-    if body:
-        items = _parse_rss(body, limit=6)
-        results += [{**i, "source": "Daily Maverick", "category": "Politics",
-                     "location_tier": "Country", "location_name": "South Africa"} for i in items]
 
     # News24
     body = http_get("https://feeds.news24.com/articles/news24/TopStories/rss")
     if body:
-        items = _parse_rss(body, limit=6)
+        items = _parse_rss(body, limit=8)
         results += [{**i, "source": "News24", "category": "Politics",
+                     "location_tier": "Country", "location_name": "South Africa"} for i in items]
+
+    # News24 Business
+    body = http_get("https://feeds.news24.com/articles/fin24/TopStories/rss")
+    if body:
+        items = _parse_rss(body, limit=5)
+        results += [{**i, "source": "Fin24", "category": "Economy",
                      "location_tier": "Country", "location_name": "South Africa"} for i in items]
 
     return results
 
 def scrape_sa_local() -> list:
-    """TimesLIVE + Mail & Guardian — SA general news (30-min interval)."""
-    log.info("Scraping SA local news (TimesLIVE + Mail & Guardian)...")
+    """Mail & Guardian + Africa Business — SA general news (timeslive.co.za RSS is 404)."""
+    log.info("Scraping SA local news (Mail & Guardian + Africa Business)...")
     results = []
-
-    # TimesLIVE
-    body = http_get("https://www.timeslive.co.za/rss/")
-    if body:
-        items = _parse_rss(body, limit=5)
-        results += [{**i, "source": "TimesLIVE", "category": "Local",
-                     "location_tier": "Country", "location_name": "South Africa"} for i in items]
 
     # Mail & Guardian
     body = http_get("https://mg.co.za/feed/")
     if body:
-        items = _parse_rss(body, limit=5)
+        items = _parse_rss(body, limit=6)
         results += [{**i, "source": "Mail & Guardian", "category": "Politics",
+                     "location_tier": "Country", "location_name": "South Africa"} for i in items]
+
+    # Africa Business — pan-African economy and business
+    body = http_get("https://african.business/feed")
+    if body:
+        items = _parse_rss(body, limit=5)
+        results += [{**i, "source": "Africa Business", "category": "Economy",
                      "location_tier": "Country", "location_name": "South Africa"} for i in items]
 
     return results
@@ -549,12 +552,7 @@ def scrape_sa_extra() -> list:
         results += [{**i, "source": "eNCA", "category": "Politics",
                      "location_tier": "Country", "location_name": "South Africa"} for i in items]
 
-    # Eyewitness News (EWN) — 702/CapeTalk digital newsroom
-    body = http_get("https://ewn.co.za/RSS")
-    if body:
-        items = _parse_rss(body, limit=6)
-        results += [{**i, "source": "Eyewitness News", "category": "Politics",
-                     "location_tier": "Country", "location_name": "South Africa"} for i in items]
+    # EWN (ewn.co.za/RSS) is 404 — removed
 
     # MyBroadband — SA tech, telecoms, economy
     body = http_get("https://mybroadband.co.za/news/feed")
@@ -563,12 +561,7 @@ def scrape_sa_extra() -> list:
         results += [{**i, "source": "MyBroadband", "category": "Economy",
                      "location_tier": "Country", "location_name": "South Africa"} for i in items]
 
-    # IOL (Independent Online) — national SA news
-    body = http_get("https://www.iol.co.za/rss")
-    if body:
-        items = _parse_rss(body, limit=5)
-        results += [{**i, "source": "IOL", "category": "Local",
-                     "location_tier": "Country", "location_name": "South Africa"} for i in items]
+    # IOL (iol.co.za/rss) returns 308 redirect that Python urllib won't auto-follow — removed
 
     # SABC News — public broadcaster
     body = http_get("https://www.sabcnews.com/sabcnews/feed/")
@@ -591,7 +584,7 @@ def scrape_community() -> list:
     results = []
 
     # GroundUp — award-winning SA community journalism (townships, education, housing)
-    body = http_get("https://groundup.org.za/feed/")
+    body = http_get("https://groundup.org.za/rss/")
     if body:
         items = _parse_rss(body, limit=6)
         results += [{**i, "source": "GroundUp", "category": "Community",
