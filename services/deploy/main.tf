@@ -1,0 +1,84 @@
+# ─── HUNGU Deploy — Axxess VPS ────────────────────────────────────────────────
+#
+# No cloud provider needed — the VPS is a pre-existing static server.
+# This config only manages the application deployment via null_resource.
+#
+# On every `terraform apply`:
+#   1. Writes the full .env to the server (all secrets injected from TF vars)
+#   2. git pull --ff-only  (latest code via HTTPS with github_token)
+#   3. Injects GMAPS_API_KEY into index.html (replaces __GMAPS_API_KEY__ placeholder)
+#   4. docker compose up -d --build --remove-orphans
+#
+# The null_resource triggers on git_sha (every push) AND env_hash (any secret change).
+#
+# Backend: none (-backend=false). State is not persisted — every apply always runs.
+# This is intentional: null_resource with no state is always "new" = always deploys.
+# ─────────────────────────────────────────────────────────────────────────────
+
+terraform {
+  required_version = ">= 1.3"
+}
+
+# ─── Server ───────────────────────────────────────────────────────────────────
+
+locals {
+  server_ip   = "156.155.250.65"
+  server_user = "root"
+  app_dir     = "/opt/hungu"
+  db_url      = "postgresql://${var.db_username}:${var.db_password}@db:5432/hungu"
+
+  env_file_content = join("\n", [
+    "GEMINI_API_KEY=${var.gemini_api_key}",
+    "GMAPS_API_KEY=${var.gmaps_api_key}",
+    "DEEPSEEK_API_KEY=${var.deepseek_api_key}",
+    "GROQ_API_KEY=${var.groq_api_key}",
+    "MISTRAL_API_KEY=${var.mistral_api_key}",
+    "OPENROUTER_API_KEY=${var.openrouter_api_key}",
+    "CEREBRAS_API_KEY=${var.cerebras_api_key}",
+    "SAMBANOVA_API_KEY=${var.sambanova_api_key}",
+    "KIMI_API_KEY=${var.kimi_api_key}",
+    "GOOGLE_CLIENT_ID=${var.google_client_id}",
+    "DB_URL=${local.db_url}",
+    "DB_USERNAME=${var.db_username}",
+    "DB_PASSWORD=${var.db_password}",
+    "DOMAIN=hungu.co.za",
+    "JWT_SECRET=${var.jwt_secret}",
+    "WORKER_API_KEY=${var.worker_api_key}",
+    "ADMIN_SECRET=${var.admin_secret}",
+    "SCRAPE_INTERVAL_SECS=3600",
+    "API_BASE_URL=http://api:8000",
+    "ENVIRONMENT=prod",
+    "",
+  ])
+}
+
+# ─── Deploy ───────────────────────────────────────────────────────────────────
+
+resource "null_resource" "deploy" {
+  # Re-runs on every push (git_sha changes) AND whenever any secret changes (env_hash)
+  triggers = {
+    git_sha  = var.git_sha
+    env_hash = sha256(local.env_file_content)
+  }
+
+  connection {
+    type        = "ssh"
+    user        = local.server_user
+    private_key = var.ssh_private_key
+    host        = local.server_ip
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      # Write .env via base64 (handles special chars safely)
+      "echo '${base64encode(local.env_file_content)}' | base64 -d > ${local.app_dir}/.env",
+      # Pull latest code via HTTPS with GitHub token
+      "git -C ${local.app_dir} remote set-url origin 'https://x-access-token:${var.github_token}@github.com/Plengo/hungu.git'",
+      "git -C ${local.app_dir} pull --ff-only",
+      # Inject Google Maps API key into the frontend
+      "sed -i 's|__GMAPS_API_KEY__|${var.gmaps_api_key}|g' ${local.app_dir}/services/web/index.html",
+      # Rebuild and restart all containers
+      "cd ${local.app_dir} && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build --remove-orphans",
+    ]
+  }
+}
