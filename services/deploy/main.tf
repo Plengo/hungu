@@ -79,6 +79,9 @@ resource "null_resource" "deploy" {
       "sed -i 's|__GMAPS_API_KEY__|${var.gmaps_api_key}|g' ${local.app_dir}/services/web/index.html",
       # Rebuild and restart all containers
       "cd ${local.app_dir} && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build --remove-orphans",
+      # Sync host nginx config if nginx is already installed (i.e. after make ssl has been run)
+      # This ensures any config changes in the repo are applied automatically on every deploy.
+      "if command -v nginx &>/dev/null && [ -f /etc/nginx/sites-available/hungu.co.za ]; then cp ${local.app_dir}/services/web/nginx.host.conf /etc/nginx/sites-available/hungu.co.za && nginx -t && systemctl reload nginx; fi",
     ]
   }
 }
