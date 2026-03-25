@@ -13,7 +13,7 @@ endif
 
 COMPOSE := docker compose $(COMPOSE_FILES)
 
-SERVER_HOST ?= root@110.238.78.218
+SERVER_HOST ?= root@156.155.250.65
 SERVER_KEY  ?= ~/.ssh/hungu_rsa
 SERVER_SSH  := ssh -i $(SERVER_KEY) $(SERVER_HOST)
 
@@ -57,3 +57,7 @@ shell-api:
 
 shell-worker:
 	$(COMPOSE) exec worker bash
+
+## Run ONCE after DNS A record points to the new server — gets SSL cert + restarts in prod mode
+ssl:
+	$(SERVER_SSH) "bash /opt/hungu/scripts/setup-ssl.sh"
