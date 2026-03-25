@@ -44,7 +44,7 @@ from db import (
     init_db, get_db, make_content_hash, make_url_hash,
     Article as ArticleModel, User as UserModel,
     Bookmark as BookmarkModel, EngagementEvent, Subscription as SubscriptionModel,
-    PageView,
+    PageView, ScrapeSource, StoryQueue,
 )
 
 # ─── Config ───────────────────────────────────────────────────────────────────
@@ -903,6 +903,94 @@ async def dispatch_notifications(
                 })
 
     return {"matches": matches, "article_count": len(articles), "subscription_count": len(subscriptions)}
+
+# ─── Admin: Scrape Sources ───────────────────────────────────────────────────
+
+@app.post("/admin/scrape-sources", status_code=201)
+async def add_scrape_source(request: Request, db: Session = Depends(get_db)):
+    require_admin(request)
+    body = await request.json()
+    url   = (body.get("url") or "").strip()
+    label = (body.get("label") or "").strip()
+    if not url:
+        raise HTTPException(status_code=422, detail="url is required")
+    existing = db.query(ScrapeSource).filter(ScrapeSource.url == url).first()
+    if existing:
+        existing.active = True
+        db.commit()
+        return {"id": str(existing.id), "url": existing.url, "label": existing.label, "active": existing.active}
+    src = ScrapeSource(url=url, label=label or url)
+    db.add(src)
+    db.commit()
+    db.refresh(src)
+    return {"id": str(src.id), "url": src.url, "label": src.label, "active": src.active}
+
+@app.get("/admin/scrape-sources")
+async def list_scrape_sources(request: Request, db: Session = Depends(get_db)):
+    require_admin(request)
+    sources = db.query(ScrapeSource).order_by(ScrapeSource.added_at.desc()).all()
+    return [{"id": str(s.id), "url": s.url, "label": s.label, "active": s.active} for s in sources]
+
+@app.delete("/admin/scrape-sources/{source_id}", status_code=204)
+async def delete_scrape_source(source_id: str, request: Request, db: Session = Depends(get_db)):
+    require_admin(request)
+    s = db.query(ScrapeSource).filter(ScrapeSource.id == source_id).first()
+    if not s:
+        raise HTTPException(status_code=404, detail="Not found")
+    db.delete(s)
+    db.commit()
+    return None
+
+@app.get("/worker/scrape-sources")
+async def worker_scrape_sources(request: Request, db: Session = Depends(get_db)):
+    require_worker_key(request)
+    sources = db.query(ScrapeSource).filter(ScrapeSource.active == True).all()
+    return [{"id": str(s.id), "url": s.url, "label": s.label} for s in sources]
+
+# ─── Admin: Story Queue ────────────────────────────────────────────────────────
+
+@app.post("/admin/story-queue", status_code=201)
+async def add_story_links(request: Request, db: Session = Depends(get_db)):
+    require_admin(request)
+    body = await request.json()
+    urls  = body.get("urls") or []
+    label = (body.get("label") or "").strip()
+    if isinstance(urls, str):
+        urls = [u.strip() for u in urls.splitlines() if u.strip()]
+    created = []
+    for url in urls:
+        url = url.strip()
+        if not url:
+            continue
+        item = StoryQueue(url=url, label=label or url)
+        db.add(item)
+        created.append(url)
+    db.commit()
+    return {"queued": len(created), "urls": created}
+
+@app.get("/admin/story-queue")
+async def list_story_queue(request: Request, db: Session = Depends(get_db)):
+    require_admin(request)
+    items = db.query(StoryQueue).order_by(StoryQueue.added_at.desc()).limit(100).all()
+    return [{"id": str(i.id), "url": i.url, "label": i.label, "status": i.status, "added_at": i.added_at.isoformat()} for i in items]
+
+@app.get("/worker/story-queue")
+async def worker_story_queue(request: Request, db: Session = Depends(get_db)):
+    require_worker_key(request)
+    items = db.query(StoryQueue).filter(StoryQueue.status == "pending").limit(20).all()
+    return [{"id": str(i.id), "url": i.url, "label": i.label} for i in items]
+
+@app.patch("/worker/story-queue/{item_id}/done", status_code=200)
+async def mark_story_done(item_id: str, request: Request, db: Session = Depends(get_db)):
+    require_worker_key(request)
+    body = await request.json()
+    item = db.query(StoryQueue).filter(StoryQueue.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Not found")
+    item.status = body.get("status", "done")
+    item.processed_at = datetime.datetime.now(datetime.timezone.utc)
+    db.commit()
+    return {"id": item_id, "status": item.status}
 
 # ─── Demo seed ────────────────────────────────────────────────────────────────
 

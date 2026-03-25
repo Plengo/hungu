@@ -280,3 +280,33 @@ class PageView(Base):
 def init_db():
     """Create all tables if they don't exist. Safe to call on every startup."""
     Base.metadata.create_all(bind=engine)
+
+
+class ScrapeSource(Base):
+    """Admin-submitted RSS/article feed URLs for the worker to scrape."""
+    __tablename__ = "scrape_sources"
+
+    id        = Column(UUIDType, primary_key=True, default=uuid.uuid4)
+    url       = Column(Text,         nullable=False, unique=True)
+    label     = Column(String(255),  nullable=False, default="")
+    active    = Column(Boolean,      default=True)
+    added_at  = Column(DateTime(timezone=True), nullable=False,
+                       default=lambda: datetime.now(timezone.utc))
+
+
+class StoryQueue(Base):
+    """Admin-submitted one-off article links for the worker to fetch and publish."""
+    __tablename__ = "story_queue"
+
+    id           = Column(UUIDType,    primary_key=True, default=uuid.uuid4)
+    url          = Column(Text,        nullable=False)
+    label        = Column(String(255), nullable=False, default="")
+    status       = Column(String(20),  default="pending")   # pending | done | failed
+    added_at     = Column(DateTime(timezone=True), nullable=False,
+                          default=lambda: datetime.now(timezone.utc))
+    processed_at = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        Index("ix_sq_status", "status"),
+    )
+

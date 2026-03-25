@@ -48,7 +48,7 @@ GROQ_API_KEY     = os.getenv("GROQ_API_KEY", "")
 MISTRAL_API_KEY  = os.getenv("MISTRAL_API_KEY", "")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 CEREBRAS_API_KEY = os.getenv("CEREBRAS_API_KEY", "")
-SAMBANOVA_API_KEY = os.getenv("SAMBANOVA_API_KEY", "")
+KIMI_API_KEY     = os.getenv("KIMI_API_KEY", "")
 API_BASE_URL     = os.getenv("API_BASE_URL", "http://api:8000")
 WORKER_API_KEY   = os.getenv("WORKER_API_KEY", "")
 AI_DELAY         = 4                  # seconds between AI calls
@@ -88,6 +88,8 @@ SCHEDULE = [
     ("jobs_dpsa",         "scrape_jobs",           86400, True),   # 24 hours — DPSA vacancies
     ("auctions",          "scrape_auctions",        3600, False),  # 60 min  — special AI prompt
     ("archive_cleanup",   "archive_old_posts",     86400, False),  # 24 hours
+    ("custom_sources",    "scrape_custom_sources",   300, True),   #  5 min  — admin-submitted RSS/feeds
+    ("story_queue",       "process_story_queue",      60, True),   #  1 min  — admin-submitted article links
 ]
 
 _last_run: dict[str, float] = {}
@@ -1260,7 +1262,133 @@ def fast_submit(raw_articles: list) -> list:
             log.info("FAST+ '%s'", raw["title"][:60])
     return new_ids
 
+# ─── Custom scrape sources (admin-submitted RSS/feed URLs) ───────────────────
+
+def scrape_custom_sources() -> list[dict]:
+    """Scrape RSS feeds submitted via the admin Scrape Sources tab."""
+    try:
+        req = urllib.request.Request(
+            f"{API_BASE_URL}/worker/scrape-sources",
+            headers=_worker_headers(),
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            sources = json.loads(resp.read())
+    except Exception as exc:
+        log.warning("scrape-sources fetch failed: %s", exc)
+        return []
+    articles = []
+    for src in sources:
+        url   = src.get("url", "")
+        label = src.get("label", url)
+        if not url:
+            continue
+        raw = http_get(url)
+        if not raw:
+            continue
+        # Try RSS/Atom parse first
+        rss_items = _parse_rss(raw, limit=10)
+        if rss_items:
+            for item in rss_items:
+                articles.append({
+                    "title":         item["title"],
+                    "summary":       item.get("raw_text", "")[:500],
+                    "source":        label,
+                    "category":      "General",
+                    "location_tier": "Country",
+                    "location_name": "South Africa",
+                    "url":           item.get("url", url),
+                    "image":         item.get("image", ""),
+                    "urgent":        False,
+                })
+        else:
+            html_art = _scrape_html_article(url, source=label)
+            if html_art:
+                articles.append(html_art)
+    return articles
+
+
+def _scrape_html_article(url: str, source: str = "") -> Optional[dict]:
+    """Best-effort extraction of title + body from an arbitrary HTML page."""
+    raw = http_get(url)
+    if not raw:
+        return None
+    from html.parser import HTMLParser
+
+    class _TitleParser(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.title = ""
+            self._in_title = False
+        def handle_starttag(self, tag, attrs):
+            if tag == "title":
+                self._in_title = True
+        def handle_endtag(self, tag):
+            if tag == "title":
+                self._in_title = False
+        def handle_data(self, data):
+            if self._in_title and not self.title:
+                self.title = data.strip()
+
+    p = _TitleParser()
+    p.feed(raw)
+    title = p.title or url
+    # strip all tags for a basic summary
+    clean = re.sub(r"<[^>]+>", " ", raw)
+    clean = re.sub(r"\s+", " ", clean).strip()[:500]
+    return {
+        "title":         title,
+        "summary":       clean,
+        "source":        source or url,
+        "category":      "General",
+        "location_tier": "Country",
+        "location_name": "South Africa",
+        "url":           url,
+        "image":         "",
+        "urgent":        False,
+    }
+
+
+def process_story_queue() -> list[dict]:
+    """Fetch and publish one-off article links submitted via the admin Story Links tab."""
+    try:
+        req = urllib.request.Request(
+            f"{API_BASE_URL}/worker/story-queue",
+            headers=_worker_headers(),
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            items = json.loads(resp.read())
+    except Exception as exc:
+        log.warning("story-queue fetch failed: %s", exc)
+        return []
+    articles = []
+    for item in items:
+        item_id = item["id"]
+        url     = item["url"]
+        label   = item.get("label", "")
+        art = _scrape_html_article(url, source=label or url)
+        status = "failed"
+        if art:
+            result = post_article(art)
+            if result.get("status") in ("created", "duplicate"):
+                status = "done"
+                articles.append(art)
+        # mark done/failed regardless
+        try:
+            req2 = urllib.request.Request(
+                f"{API_BASE_URL}/worker/story-queue/{item_id}/done",
+                data=json.dumps({"status": status}).encode(),
+                method="PATCH",
+                headers=_worker_headers(),
+            )
+            with urllib.request.urlopen(req2, timeout=10):
+                pass
+        except Exception as exc2:
+            log.warning("story-queue mark-done failed %s: %s", item_id, exc2)
+    return articles
+
+
 # ─── Scheduler ────────────────────────────────────────────────────────────────
+
 
 SCRAPER_FNS = {
     "scrape_bbc_world":    scrape_bbc_world,
@@ -1277,6 +1405,8 @@ SCRAPER_FNS = {
     "scrape_auctions":     scrape_auctions,
     "archive_old_posts":   archive_old_posts,
     "enrich_old_articles": enrich_old_articles,
+    "scrape_custom_sources": scrape_custom_sources,
+    "process_story_queue": process_story_queue,
 }
 
 def run_scheduler():
