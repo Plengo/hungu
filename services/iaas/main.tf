@@ -166,6 +166,33 @@ variable "ssh_private_key_path" {
   default     = "~/.ssh/hungu_rsa"
 }
 
+variable "ssh_private_key" {
+  description = "SSH private key content for CI (GitHub secret). Leave empty to use ssh_private_key_path file instead."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "github_token" {
+  description = "GitHub token for HTTPS git pull in CI. Leave empty to use SSH remote (local use)."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "git_sha" {
+  description = "Current git commit SHA — forces null_resource to re-run on every code push."
+  type        = string
+  default     = ""
+}
+
+variable "gmaps_api_key" {
+  description = "Google Maps JavaScript API key (Places autocomplete in the frontend)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
 variable "region" {
   description = "Huawei Cloud region"
   type        = string
@@ -260,6 +287,7 @@ locals {
   # Full .env content — written to the server by null_resource on every apply when keys change
   env_file_content = join("\n", [
     "GEMINI_API_KEY=${var.gemini_api_key}",
+    "GMAPS_API_KEY=${var.gmaps_api_key}",
     "DEEPSEEK_API_KEY=${var.deepseek_api_key}",
     "GROQ_API_KEY=${var.groq_api_key}",
     "MISTRAL_API_KEY=${var.mistral_api_key}",
@@ -439,12 +467,13 @@ resource "huaweicloud_compute_eip_associate" "hungu_eip_bind" {
 resource "null_resource" "update_env" {
   triggers = {
     env_hash = sha256(local.env_file_content)
+    git_sha  = var.git_sha
   }
 
   connection {
     type        = "ssh"
     user        = "root"
-    private_key = file(pathexpand(var.ssh_private_key_path))
+    private_key = var.ssh_private_key != "" ? var.ssh_private_key : file(pathexpand(var.ssh_private_key_path))
     host        = huaweicloud_vpc_eip.hungu_eip.address
   }
 
@@ -452,10 +481,14 @@ resource "null_resource" "update_env" {
     inline = [
       # Write .env via base64 to safely handle any special characters in key values
       "echo '${base64encode(local.env_file_content)}' | base64 -d > /opt/hungu/.env",
-      # Ensure git remote uses SSH (survives git checkout --) 
-      "git -C /opt/hungu remote set-url origin git@github.com:Plengo/hungu.git",
-      # Pull latest code and redeploy
-      "cd /opt/hungu && git pull && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build",
+      # Use HTTPS remote with token in CI, SSH remote for local use
+      "if [ -n '${var.github_token}' ]; then git -C /opt/hungu remote set-url origin 'https://x-access-token:${var.github_token}@github.com/Plengo/hungu.git'; else git -C /opt/hungu remote set-url origin git@github.com:Plengo/hungu.git; fi",
+      # Pull latest code
+      "git -C /opt/hungu pull --ff-only",
+      # Inject Google Maps API key into frontend (replaces placeholder in index.html)
+      "sed -i 's|__GMAPS_API_KEY__|${var.gmaps_api_key}|g' /opt/hungu/services/web/index.html",
+      # Rebuild and restart all containers
+      "cd /opt/hungu && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build --remove-orphans",
     ]
   }
 

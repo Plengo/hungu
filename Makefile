@@ -2,7 +2,8 @@
 # Reads ENVIRONMENT from .env file, falls back to dev.
 # Override on the CLI: make up ENVIRONMENT=prod
 # On the server .env contains ENVIRONMENT=prod so this auto-selects prod mode.
-ENVIRONMENT ?= $(or $(shell grep -s '^ENVIRONMENT=' .env | cut -d= -f2 | tr -d '[:space:]'),dev)
+ENVIRONMENT   ?= $(or $(shell grep -s '^ENVIRONMENT=' .env | cut -d= -f2 | tr -d '[:space:]'),dev)
+GMAPS_API_KEY ?= $(shell grep -s '^GMAPS_API_KEY=' .env | cut -d= -f2 | tr -d '[:space:]')
 
 ifeq ($(ENVIRONMENT),prod)
   COMPOSE_FILES := -f docker-compose.yml -f docker-compose.prod.yml
@@ -48,7 +49,7 @@ server:
 	@echo "▶  Stopping local containers..."
 	docker compose -f docker-compose.yml down
 	@echo "▶  Deploying to server $(SERVER_HOST)..."
-	$(SERVER_SSH) "cd /opt/hungu && git pull --ff-only && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build --remove-orphans"
+	$(SERVER_SSH) "cd /opt/hungu && git pull --ff-only && sed -i 's|__GMAPS_API_KEY__|$(GMAPS_API_KEY)|g' services/web/index.html && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build --remove-orphans"
 	@echo "✓  Server deploy complete. Local containers are down."
 
 shell-api:
