@@ -22,7 +22,7 @@ terraform {
 # ─── Server ───────────────────────────────────────────────────────────────────
 
 locals {
-  server_ip   = "156.155.250.65"
+  server_ip   = var.server_ip
   server_user = "root"
   app_dir     = "/opt/hungu"
   db_url      = "postgresql://${var.db_username}:${var.db_password}@db:5432/hungu"
@@ -70,6 +70,13 @@ resource "null_resource" "deploy" {
 
   provisioner "remote-exec" {
     inline = [
+      # ── 1. Bootstrap (idempotent — safe to run on every deploy) ────────────
+      # Install Docker via official script if not present
+      "command -v docker &>/dev/null || (apt-get update -qq && apt-get install -y -qq ca-certificates curl && install -m 0755 -d /etc/apt/keyrings && curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc && chmod a+r /etc/apt/keyrings/docker.asc && echo \"deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable\" > /etc/apt/sources.list.d/docker.list && apt-get update -qq && apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin && systemctl enable --now docker)",
+      # Clone the repo if it doesn't exist yet
+      "[ -d ${local.app_dir}/.git ] || git clone 'https://x-access-token:${var.github_token}@github.com/Plengo/hungu.git' ${local.app_dir}",
+
+      # ── 2. Deploy ──────────────────────────────────────────────────────────
       # Write .env via base64 (handles special chars safely)
       "echo '${base64encode(local.env_file_content)}' | base64 -d > ${local.app_dir}/.env",
       # Pull latest code via HTTPS with GitHub token
@@ -79,8 +86,10 @@ resource "null_resource" "deploy" {
       "sed -i 's|__GMAPS_API_KEY__|${var.gmaps_api_key}|g' ${local.app_dir}/services/web/index.html",
       # Rebuild and restart all containers
       "cd ${local.app_dir} && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build --remove-orphans",
-      # Sync host nginx config if nginx is already installed (i.e. after make ssl has been run)
-      # This ensures any config changes in the repo are applied automatically on every deploy.
+
+      # ── 3. Sync host nginx config (only if nginx is already set up) ────────
+      # nginx is installed once via `make ssl` after DNS cutover. After that,
+      # any change to nginx.host.conf in the repo is auto-applied on every deploy.
       "if command -v nginx &>/dev/null && [ -f /etc/nginx/sites-available/hungu.co.za ]; then cp ${local.app_dir}/services/web/nginx.host.conf /etc/nginx/sites-available/hungu.co.za && nginx -t && systemctl reload nginx; fi",
     ]
   }

@@ -1,5 +1,10 @@
 # ─── Deployment variables ─────────────────────────────────────────────────────
 
+variable "server_ip" {
+  description = "Public IP of the target server. Change this to move to a new server."
+  type        = string
+  default     = "156.155.250.65"
+}
 variable "ssh_private_key" {
   description = "Private key for SSH access to server (PEM content)"
   type        = string
