@@ -4,7 +4,9 @@ services:
   web:
     build: ./services/web
     ports:
-      - "3000:80"
+      # 127.0.0.1 binding works for local dev (localhost:3000) and prod (host nginx proxies here).
+      # Port is defined once here so the prod override doesn't cause a duplicate-binding conflict.
+      - "127.0.0.1:3000:80"
     volumes:
       - ./services/web/nginx.dev.conf:/etc/nginx/conf.d/default.conf:ro
     networks:
