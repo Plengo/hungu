@@ -862,8 +862,8 @@ _SA_ACCOUNTS = [
 
 # Public Nitter instances — try in order until one works
 _NITTER_INSTANCES = [
-    "nitter.privacydev.net",
     "nitter.poast.org",
+    "nitter.net",
 ]
 
 def _nitter_to_x_url(nitter_url: str) -> str:
