@@ -57,6 +57,11 @@
     /* Feed: single Facebook-style column */
     #feed-list { display: block; }
     @media (min-width: 680px) { #feed-list { max-width: 680px; margin-left: auto; margin-right: auto; } }
+    /* Admin tabs */
+    .admin-tab { flex-shrink:0; padding:0.45rem 1rem; border-radius:999px; font-size:0.72rem; font-weight:800; color:#64748b; background:transparent; border:none; cursor:pointer; white-space:nowrap; }
+    .admin-tab.active-tab { background:#4a90a4; color:#fff; }
+    .admin-panel { display:block; }
+    .admin-panel.hidden { display:none; }
   </style>
 </head>
 <body class="bg-[#4b5d6c] min-h-screen">
@@ -598,102 +603,167 @@
     </div>
 
     <!-- Dashboard -->
-    <div id="admin-content" class="hidden px-4 pt-4 pb-24 space-y-4">
-      <!-- Visitor cards -->
-      <div class="bg-white rounded-3xl p-5 shadow-sm">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="text-xs font-extrabold text-slate-400 uppercase tracking-widest">Visitors</h2>
-          <button onclick="loadAdminStats()" class="text-xs text-[#4a90a4] font-bold press">↻ Refresh</button>
-        </div>
-        <div class="grid grid-cols-2 gap-3" id="admin-visitor-grid">
-          <div class="bg-slate-50 rounded-2xl h-20 animate-pulse"></div>
-          <div class="bg-slate-50 rounded-2xl h-20 animate-pulse"></div>
-          <div class="bg-slate-50 rounded-2xl h-20 animate-pulse"></div>
-          <div class="bg-slate-50 rounded-2xl h-20 animate-pulse"></div>
-        </div>
+    <div id="admin-content" class="hidden flex flex-col min-h-0">
+
+      <!-- Tab bar -->
+      <div class="flex gap-1 px-4 pt-4 overflow-x-auto scroll-hide flex-shrink-0">
+        <button onclick="switchAdminTab('stats')"    id="atab-stats"    class="admin-tab active-tab">📊 Stats</button>
+        <button onclick="switchAdminTab('community')" id="atab-community" class="admin-tab">📖 Community</button>
+        <button onclick="switchAdminTab('breaking')" id="atab-breaking" class="admin-tab">🔴 Breaking</button>
+        <button onclick="switchAdminTab('sources')"  id="atab-sources"  class="admin-tab">🔗 Scrape URLs</button>
+        <button onclick="switchAdminTab('stories')"  id="atab-stories"  class="admin-tab">📰 Story Links</button>
       </div>
-      <!-- Content & engagement -->
-      <div class="bg-white rounded-3xl p-5 shadow-sm">
-        <h2 class="text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-4">Content &amp; Engagement</h2>
-        <div id="admin-content-stats" class="bg-slate-50 rounded-2xl h-24 animate-pulse"></div>
-      </div>
-      <!-- Category breakdown -->
-      <div class="bg-white rounded-3xl p-5 shadow-sm">
-        <h2 class="text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-4">Articles by Category</h2>
-        <div id="admin-categories" class="space-y-2"><div class="bg-slate-50 rounded-2xl h-28 animate-pulse"></div></div>
-      </div>
-      <!-- Post Community Story -->
-      <div class="bg-white rounded-3xl p-5 shadow-sm border-2 border-[#87ceeb]/50">
-        <h2 class="text-xs font-extrabold text-[#4a90a4] uppercase tracking-widest mb-1">📖 Post Community Story</h2>
-        <p class="text-[11px] text-slate-400 mb-3">For reports spotted on Facebook/WhatsApp community groups.</p>
-        <div class="space-y-3">
-          <input id="cs-title" type="text" placeholder="Headline *" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-semibold outline-none focus:border-[#4a90a4]"/>
-          <textarea id="cs-summary" placeholder="What happened? Include all details reported. *" rows="3" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#4a90a4] resize-none"></textarea>
-          <input id="cs-source" type="text" placeholder="Source e.g. 'Menlyn Residents FB Group'" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#4a90a4]"/>
-          <div class="flex gap-2">
-            <input id="cs-suburb" type="text" placeholder="Suburb e.g. Menlyn" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#4a90a4]"/>
-            <input id="cs-city" type="text" placeholder="City e.g. Pretoria" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#4a90a4]"/>
+
+      <!-- ── Tab: Stats ── -->
+      <div id="apanel-stats" class="admin-panel px-4 pt-3 pb-24 space-y-4">
+        <!-- Visitor cards -->
+        <div class="bg-white rounded-3xl p-5 shadow-sm">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xs font-extrabold text-slate-400 uppercase tracking-widest">Visitors</h2>
+            <button onclick="loadAdminStats()" class="text-xs text-[#4a90a4] font-bold press">↻ Refresh</button>
           </div>
-          <input id="cs-image" type="url" placeholder="Image URL (optional)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#4a90a4]"/>
-          <select id="cs-category" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#4a90a4]">
-            <option value="Community">Community</option>
-            <option value="Crime">Crime</option>
-            <option value="Local">Local</option>
-            <option value="Health">Health</option>
-            <option value="Economy">Economy</option>
-            <option value="Entertainment">Entertainment</option>
-          </select>
-          <button onclick="postCommunityStory()" class="w-full bg-[#4a90a4] text-white py-3 rounded-xl font-extrabold text-sm press flex items-center justify-center gap-2">
-            📖 Publish as Community Story
-          </button>
-          <p id="cs-status" class="text-xs text-center font-semibold hidden"></p>
+          <div class="grid grid-cols-2 gap-3" id="admin-visitor-grid">
+            <div class="bg-slate-50 rounded-2xl h-20 animate-pulse"></div>
+            <div class="bg-slate-50 rounded-2xl h-20 animate-pulse"></div>
+            <div class="bg-slate-50 rounded-2xl h-20 animate-pulse"></div>
+            <div class="bg-slate-50 rounded-2xl h-20 animate-pulse"></div>
+          </div>
+        </div>
+        <!-- Content & engagement -->
+        <div class="bg-white rounded-3xl p-5 shadow-sm">
+          <h2 class="text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-4">Content &amp; Engagement</h2>
+          <div id="admin-content-stats" class="bg-slate-50 rounded-2xl h-24 animate-pulse"></div>
+        </div>
+        <!-- Category breakdown -->
+        <div class="bg-white rounded-3xl p-5 shadow-sm">
+          <h2 class="text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-4">Articles by Category</h2>
+          <div id="admin-categories" class="space-y-2"><div class="bg-slate-50 rounded-2xl h-28 animate-pulse"></div></div>
+        </div>
+        <!-- Recent articles -->
+        <div class="bg-white rounded-3xl p-5 shadow-sm">
+          <h2 class="text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-3">Latest Submissions</h2>
+          <div id="admin-recent" class="space-y-1">
+            <div class="bg-slate-50 rounded-xl h-10 animate-pulse"></div>
+            <div class="bg-slate-50 rounded-xl h-10 animate-pulse"></div>
+            <div class="bg-slate-50 rounded-xl h-10 animate-pulse"></div>
+          </div>
         </div>
       </div>
 
-      <!-- Post Breaking News -->
-      <div class="bg-white rounded-3xl p-5 shadow-sm border-2 border-red-100">
-        <h2 class="text-xs font-extrabold text-red-400 uppercase tracking-widest mb-3">🔴 Post Breaking News</h2>
-        <div class="space-y-3">
-          <input id="bn-title" type="text" placeholder="Headline *" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-semibold outline-none focus:border-red-400"/>
-          <textarea id="bn-summary" placeholder="Summary *" rows="3" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-red-400 resize-none"></textarea>
-          <input id="bn-url" type="url" placeholder="Source URL (optional)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-red-400"/>
-          <input id="bn-source" type="text" placeholder="Source name e.g. AP News" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-red-400"/>
-          <input id="bn-image" type="url" placeholder="Image URL (optional)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-red-400"/>
-          <div class="flex gap-2">
-            <select id="bn-category" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-red-400">
-              <option value="General">General</option>
-              <option value="Politics">Politics</option>
+      <!-- ── Tab: Community Story ── -->
+      <div id="apanel-community" class="admin-panel hidden px-4 pt-3 pb-24">
+        <div class="bg-white rounded-3xl p-5 shadow-sm border-2 border-[#87ceeb]/50">
+          <h2 class="text-xs font-extrabold text-[#4a90a4] uppercase tracking-widest mb-1">📖 Post Community Story</h2>
+          <p class="text-[11px] text-slate-400 mb-3">For reports spotted on Facebook/WhatsApp community groups.</p>
+          <div class="space-y-3">
+            <input id="cs-title" type="text" placeholder="Headline *" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-semibold outline-none focus:border-[#4a90a4]"/>
+            <textarea id="cs-summary" placeholder="What happened? Include all details reported. *" rows="3" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#4a90a4] resize-none"></textarea>
+            <input id="cs-source" type="text" placeholder="Source e.g. 'Menlyn Residents FB Group'" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#4a90a4]"/>
+            <div class="flex gap-2">
+              <input id="cs-suburb" type="text" placeholder="Suburb e.g. Menlyn" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#4a90a4]"/>
+              <input id="cs-city" type="text" placeholder="City e.g. Pretoria" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#4a90a4]"/>
+            </div>
+            <input id="cs-image" type="url" placeholder="Image URL (optional)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#4a90a4]"/>
+            <select id="cs-category" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#4a90a4]">
+              <option value="Community">Community</option>
               <option value="Crime">Crime</option>
-              <option value="Economy">Economy</option>
-              <option value="Health">Health</option>
-              <option value="Entertainment">Entertainment</option>
-              <option value="Environment">Environment</option>
-              <option value="Wars">Wars</option>
               <option value="Local">Local</option>
+              <option value="Health">Health</option>
+              <option value="Economy">Economy</option>
+              <option value="Entertainment">Entertainment</option>
             </select>
-            <select id="bn-tier" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-red-400">
-              <option value="national">National</option>
-              <option value="global">Global</option>
-              <option value="provincial">Provincial</option>
-              <option value="local">Local</option>
-            </select>
+            <button onclick="postCommunityStory()" class="w-full bg-[#4a90a4] text-white py-3 rounded-xl font-extrabold text-sm press flex items-center justify-center gap-2">
+              📖 Publish as Community Story
+            </button>
+            <p id="cs-status" class="text-xs text-center font-semibold hidden"></p>
           </div>
-          <button onclick="postBreakingNews()" class="w-full bg-red-600 text-white py-3 rounded-xl font-extrabold text-sm press flex items-center justify-center gap-2">
-            🔴 Publish as Breaking News
-          </button>
-          <p id="bn-status" class="text-xs text-center font-semibold hidden"></p>
         </div>
       </div>
-      <!-- Recent articles -->
-      <div class="bg-white rounded-3xl p-5 shadow-sm">
-        <h2 class="text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-3">Latest Submissions</h2>
-        <div id="admin-recent" class="space-y-1">
-          <div class="bg-slate-50 rounded-xl h-10 animate-pulse"></div>
-          <div class="bg-slate-50 rounded-xl h-10 animate-pulse"></div>
-          <div class="bg-slate-50 rounded-xl h-10 animate-pulse"></div>
+
+      <!-- ── Tab: Breaking News ── -->
+      <div id="apanel-breaking" class="admin-panel hidden px-4 pt-3 pb-24">
+        <div class="bg-white rounded-3xl p-5 shadow-sm border-2 border-red-100">
+          <h2 class="text-xs font-extrabold text-red-400 uppercase tracking-widest mb-3">🔴 Post Breaking News</h2>
+          <div class="space-y-3">
+            <input id="bn-title" type="text" placeholder="Headline *" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-semibold outline-none focus:border-red-400"/>
+            <textarea id="bn-summary" placeholder="Summary *" rows="3" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-red-400 resize-none"></textarea>
+            <input id="bn-url" type="url" placeholder="Source URL (optional)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-red-400"/>
+            <input id="bn-source" type="text" placeholder="Source name e.g. AP News" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-red-400"/>
+            <input id="bn-image" type="url" placeholder="Image URL (optional)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-red-400"/>
+            <div class="flex gap-2">
+              <select id="bn-category" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-red-400">
+                <option value="General">General</option>
+                <option value="Politics">Politics</option>
+                <option value="Crime">Crime</option>
+                <option value="Economy">Economy</option>
+                <option value="Health">Health</option>
+                <option value="Entertainment">Entertainment</option>
+                <option value="Environment">Environment</option>
+                <option value="Wars">Wars</option>
+                <option value="Local">Local</option>
+              </select>
+              <select id="bn-tier" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-red-400">
+                <option value="national">National</option>
+                <option value="global">Global</option>
+                <option value="provincial">Provincial</option>
+                <option value="local">Local</option>
+              </select>
+            </div>
+            <button onclick="postBreakingNews()" class="w-full bg-red-600 text-white py-3 rounded-xl font-extrabold text-sm press flex items-center justify-center gap-2">
+              🔴 Publish as Breaking News
+            </button>
+            <p id="bn-status" class="text-xs text-center font-semibold hidden"></p>
+          </div>
         </div>
       </div>
-    </div>
+
+      <!-- ── Tab: Scrape URLs ── -->
+      <div id="apanel-sources" class="admin-panel hidden px-4 pt-3 pb-24 space-y-4">
+        <div class="bg-white rounded-3xl p-5 shadow-sm border-2 border-purple-100">
+          <h2 class="text-xs font-extrabold text-purple-500 uppercase tracking-widest mb-1">🔗 Add Scrape Source</h2>
+          <p class="text-[11px] text-slate-400 mb-3">Paste an RSS feed or article page URL. The worker will scrape it every 5 minutes.</p>
+          <div class="space-y-3">
+            <input id="src-url" type="url" placeholder="URL e.g. https://example.com/rss.xml *" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-purple-400"/>
+            <input id="src-label" type="text" placeholder="Label e.g. 'My Local Blog'" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-purple-400"/>
+            <button onclick="addScrapeSource()" class="w-full bg-purple-600 text-white py-3 rounded-xl font-extrabold text-sm press">
+              ➕ Add to Scrape List
+            </button>
+            <p id="src-status" class="text-xs text-center font-semibold hidden"></p>
+          </div>
+        </div>
+        <div class="bg-white rounded-3xl p-5 shadow-sm">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-xs font-extrabold text-slate-400 uppercase tracking-widest">Current Sources</h2>
+            <button onclick="loadScrapeSources()" class="text-xs text-[#4a90a4] font-bold press">↻ Refresh</button>
+          </div>
+          <div id="scrape-sources-list" class="space-y-2 text-sm text-slate-400 italic">Loading…</div>
+        </div>
+      </div>
+
+      <!-- ── Tab: Story Links ── -->
+      <div id="apanel-stories" class="admin-panel hidden px-4 pt-3 pb-24 space-y-4">
+        <div class="bg-white rounded-3xl p-5 shadow-sm border-2 border-amber-100">
+          <h2 class="text-xs font-extrabold text-amber-500 uppercase tracking-widest mb-1">📰 Add Story Links</h2>
+          <p class="text-[11px] text-slate-400 mb-3">Paste one URL per line. The worker will fetch each page, extract the article and publish it.</p>
+          <div class="space-y-3">
+            <textarea id="sl-urls" rows="5" placeholder="https://example.com/article-1&#10;https://example.com/article-2" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-amber-400 resize-none font-mono"></textarea>
+            <input id="sl-label" type="text" placeholder="Source label (optional)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-amber-400"/>
+            <button onclick="addStoryLinks()" class="w-full bg-amber-500 text-white py-3 rounded-xl font-extrabold text-sm press">
+              📰 Queue for Publishing
+            </button>
+            <p id="sl-status" class="text-xs text-center font-semibold hidden"></p>
+          </div>
+        </div>
+        <div class="bg-white rounded-3xl p-5 shadow-sm">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-xs font-extrabold text-slate-400 uppercase tracking-widest">Queue</h2>
+            <button onclick="loadStoryQueue()" class="text-xs text-[#4a90a4] font-bold press">↻ Refresh</button>
+          </div>
+          <div id="story-queue-list" class="space-y-2 text-sm text-slate-400 italic">Loading…</div>
+        </div>
+      </div>
+
+    </div><!-- /admin-content -->
   </div><!-- /view-admin -->
 
 </div><!-- /app -->
@@ -1918,6 +1988,111 @@ function renderAdminData(d) {
       </div>`).join('');
 }
 
+// ─── Admin tabs ───────────────────────────────────────────────────────────────
+function switchAdminTab(name) {
+  ['stats','community','breaking','sources','stories'].forEach(t => {
+    document.getElementById('apanel-' + t).classList.toggle('hidden', t !== name);
+    document.getElementById('atab-' + t).classList.toggle('active-tab', t === name);
+  });
+  if (name === 'sources')  loadScrapeSources();
+  if (name === 'stories')  loadStoryQueue();
+}
+
+// ─── Scrape Sources ───────────────────────────────────────────────────────────
+async function loadScrapeSources() {
+  const el = document.getElementById('scrape-sources-list');
+  if (!el) return;
+  el.innerHTML = '<span class="italic text-slate-400 text-xs">Loading…</span>';
+  try {
+    const res = await fetch(`${API_URL}/admin/scrape-sources`, { headers: { 'X-Admin-Key': _adminKey } });
+    if (!res.ok) { el.innerHTML = '<span class="text-red-400 text-xs">Error loading sources</span>'; return; }
+    const data = await res.json();
+    if (!data.length) { el.innerHTML = '<span class="text-slate-400 text-xs italic">No sources yet.</span>'; return; }
+    el.innerHTML = data.map(s => `
+      <div class="flex items-center gap-2 py-2 border-b border-slate-100 last:border-0">
+        <div class="flex-1 min-w-0">
+          <div class="text-xs font-bold text-slate-700 truncate">${s.label || s.url}</div>
+          <div class="text-[10px] text-slate-400 truncate">${s.url}</div>
+        </div>
+        <button onclick="deleteScrapeSource('${s.id}')" class="text-[10px] font-bold px-2 py-1 rounded-lg bg-red-50 text-red-500 border border-red-200 press flex-shrink-0">✕</button>
+      </div>`).join('');
+  } catch (e) { el.innerHTML = '<span class="text-red-400 text-xs">Network error</span>'; }
+}
+
+async function addScrapeSource() {
+  const url   = document.getElementById('src-url').value.trim();
+  const label = document.getElementById('src-label').value.trim();
+  const status = document.getElementById('src-status');
+  if (!url) { status.textContent = '⚠️ URL is required'; status.className = 'text-xs text-center font-semibold text-red-500'; status.classList.remove('hidden'); return; }
+  status.textContent = 'Saving…'; status.className = 'text-xs text-center font-semibold text-slate-400'; status.classList.remove('hidden');
+  try {
+    const res = await fetch(`${API_URL}/admin/scrape-sources`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Key': _adminKey },
+      body: JSON.stringify({ url, label })
+    });
+    if (!res.ok) { status.textContent = '❌ ' + (await res.text()); status.className = 'text-xs text-center font-semibold text-red-500'; return; }
+    status.textContent = '✅ Added!'; status.className = 'text-xs text-center font-semibold text-green-600';
+    document.getElementById('src-url').value = '';
+    document.getElementById('src-label').value = '';
+    loadScrapeSources();
+  } catch (e) { status.textContent = '❌ Network error'; status.className = 'text-xs text-center font-semibold text-red-500'; }
+}
+
+async function deleteScrapeSource(id) {
+  if (!confirm('Remove this scrape source?')) return;
+  try {
+    await fetch(`${API_URL}/admin/scrape-sources/${id}`, { method: 'DELETE', headers: { 'X-Admin-Key': _adminKey } });
+    loadScrapeSources();
+  } catch (e) { alert('Error removing source'); }
+}
+
+// ─── Story Queue ──────────────────────────────────────────────────────────────
+async function loadStoryQueue() {
+  const el = document.getElementById('story-queue-list');
+  if (!el) return;
+  el.innerHTML = '<span class="italic text-slate-400 text-xs">Loading…</span>';
+  try {
+    const res = await fetch(`${API_URL}/admin/story-queue`, { headers: { 'X-Admin-Key': _adminKey } });
+    if (!res.ok) { el.innerHTML = '<span class="text-red-400 text-xs">Error</span>'; return; }
+    const data = await res.json();
+    if (!data.length) { el.innerHTML = '<span class="text-slate-400 text-xs italic">Queue is empty.</span>'; return; }
+    const badge = s => s === 'done' ? '✅' : s === 'failed' ? '❌' : '⏳';
+    el.innerHTML = data.map(q => `
+      <div class="flex items-center gap-2 py-2 border-b border-slate-100 last:border-0">
+        <span class="text-base">${badge(q.status)}</span>
+        <div class="flex-1 min-w-0">
+          <div class="text-[10px] text-slate-400 truncate">${q.url}</div>
+          ${q.label ? `<div class="text-[10px] text-slate-500">${q.label}</div>` : ''}
+        </div>
+        <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full ${q.status==='done'?'bg-green-50 text-green-600':q.status==='failed'?'bg-red-50 text-red-500':'bg-amber-50 text-amber-500'}">${q.status}</span>
+      </div>`).join('');
+  } catch (e) { el.innerHTML = '<span class="text-red-400 text-xs">Network error</span>'; }
+}
+
+async function addStoryLinks() {
+  const raw   = document.getElementById('sl-urls').value.trim();
+  const label = document.getElementById('sl-label').value.trim();
+  const status = document.getElementById('sl-status');
+  const urls  = raw.split('\n').map(u => u.trim()).filter(u => u.startsWith('http'));
+  if (!urls.length) { status.textContent = '⚠️ Enter at least one URL'; status.className = 'text-xs text-center font-semibold text-red-500'; status.classList.remove('hidden'); return; }
+  status.textContent = 'Queueing…'; status.className = 'text-xs text-center font-semibold text-slate-400'; status.classList.remove('hidden');
+  try {
+    const res = await fetch(`${API_URL}/admin/story-queue`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Key': _adminKey },
+      body: JSON.stringify({ urls, label })
+    });
+    if (!res.ok) { status.textContent = '❌ ' + (await res.text()); status.className = 'text-xs text-center font-semibold text-red-500'; return; }
+    const d = await res.json();
+    status.textContent = `✅ Queued ${d.added} link${d.added !== 1 ? 's' : ''}`;
+    status.className = 'text-xs text-center font-semibold text-green-600';
+    document.getElementById('sl-urls').value = '';
+    document.getElementById('sl-label').value = '';
+    loadStoryQueue();
+  } catch (e) { status.textContent = '❌ Network error'; status.className = 'text-xs text-center font-semibold text-red-500'; }
+}
+
 async function adminToggleUrgent(id, btn) {
   const key = document.getElementById('admin-key-input')?.value || '';
   const res = await fetch(`/api/admin/articles/${id}/urgent`, { method: 'PATCH', headers: { 'X-Admin-Key': key } });
@@ -2282,7 +2457,8 @@ async function loadBreakingTicker() {
     const res = await fetch('/api/feed?limit=50');
     if (!res.ok) return;
     const articles = await res.json();
-    const urgent = articles.filter(a => a.urgent);
+    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const urgent = articles.filter(a => a.urgent && new Date(a.created_at || 0).getTime() > sevenDaysAgo);
     const bar = document.getElementById('breaking-bar');
     if (!bar) return;
     if (!urgent.length) { bar.classList.add('hidden'); return; }
