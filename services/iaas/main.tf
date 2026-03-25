@@ -277,6 +277,7 @@ locals {
     "ADMIN_SECRET=${var.admin_secret}",
     "SCRAPE_INTERVAL_SECS=3600",
     "API_BASE_URL=http://api:8000",
+    "ENVIRONMENT=prod",
     "",
   ])
 
