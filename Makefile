@@ -12,7 +12,11 @@ endif
 
 COMPOSE := docker compose $(COMPOSE_FILES)
 
-.PHONY: up down restart logs ps build deploy shell-api shell-worker
+SERVER_HOST ?= root@110.238.78.218
+SERVER_KEY  ?= ~/.ssh/hungu_rsa
+SERVER_SSH  := ssh -i $(SERVER_KEY) $(SERVER_HOST)
+
+.PHONY: up down restart logs ps build deploy server shell-api shell-worker
 
 up:
 	@echo "▶  Environment: $(ENVIRONMENT)"
@@ -33,10 +37,19 @@ ps:
 build:
 	$(COMPOSE) build --no-cache
 
-## Pull latest code and redeploy (use on server for ad-hoc updates)
+## Pull latest code and redeploy — run ON the server for ad-hoc updates
 deploy:
 	git pull --ff-only
 	$(COMPOSE) up -d --build --remove-orphans
+
+## Run from local machine: stops local containers first, then redeploys on server.
+## Prevents double API usage (local worker + server worker both calling AI keys).
+server:
+	@echo "▶  Stopping local containers..."
+	docker compose -f docker-compose.yml down
+	@echo "▶  Deploying to server $(SERVER_HOST)..."
+	$(SERVER_SSH) "cd /opt/hungu && git pull --ff-only && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build --remove-orphans"
+	@echo "✓  Server deploy complete. Local containers are down."
 
 shell-api:
 	$(COMPOSE) exec api bash
