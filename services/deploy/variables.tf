@@ -111,5 +111,4 @@ variable "worker_api_key" {
 variable "admin_secret" {
   type      = string
   sensitive = true
-  default   = "hungu-admin-2026"
 }

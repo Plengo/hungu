@@ -84,6 +84,8 @@ resource "null_resource" "deploy" {
       "git -C ${local.app_dir} pull --ff-only",
       # Inject Google Maps API key into the frontend
       "sed -i 's|__GMAPS_API_KEY__|${var.gmaps_api_key}|g' ${local.app_dir}/services/web/index.html",
+      # Inject Worker API key into the frontend (admin panel auth)
+      "sed -i 's|__WORKER_API_KEY__|${var.worker_api_key}|g' ${local.app_dir}/services/web/index.html",
       # Rebuild and restart all containers
       "cd ${local.app_dir} && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build --remove-orphans",
 
