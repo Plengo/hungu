@@ -572,7 +572,8 @@ const API_URL = (window.location.hostname === 'localhost' || window.location.hos
   ? 'http://localhost:8000' : '/api';
 
 // Categories that should be treated as "story" types (eligible for the stories strip)
-const STORY_CATEGORIES = new Set(['Community', 'Entertainment', 'Exciting', 'Funny', 'Wonderful', 'Rare']);
+// Community stays in news cards; only fun/entertainment categories go in stories
+const STORY_CATEGORIES = new Set(['Entertainment', 'Exciting', 'Funny', 'Wonderful', 'Rare']);
 
 const CATEGORY_IMAGES = {
   'Wars':     'https://images.unsplash.com/photo-1579684453423-f84349ef60b0?w=800&q=60',
@@ -887,6 +888,9 @@ function renderFeed() {
   let items = getArticles();
   if (state.currentCategory !== 'all') {
     items = items.filter(a => (a.category || '').toLowerCase() === state.currentCategory.toLowerCase());
+  } else {
+    // In the "all" feed, exclude story-only categories — they live exclusively in the Stories strip
+    items = items.filter(a => !STORY_CATEGORIES.has(a.category || ''));
   }
   items = [...items].sort((a, b) =>
     (TIER_ORDER[a.location_tier || a.locationTier] || 5) - (TIER_ORDER[b.location_tier || b.locationTier] || 5));
@@ -1202,7 +1206,8 @@ async function openArticle(id) {
       <!-- SECTION 1 — Summary -->
       <section class="mb-6">
         <p class="sec-tag text-slate-400 flex items-center gap-1.5 mb-3"><span class="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center font-black text-[9px]">1</span> Summary</p>
-        <p class="text-slate-700 text-base sm:text-lg leading-relaxed">${a.summary || a.fullContext}</p>
+        ${a.summary ? `<p class="text-slate-400 text-sm italic leading-relaxed mb-3 border-l-4 border-slate-200 pl-3">${a.summary}</p>` : ''}
+        <p class="text-slate-700 text-base sm:text-lg leading-relaxed">${a.fullContext || a.summary}</p>
       </section>
 
       ${a.category === 'Auctions' ? '' : _sectionImpact(a)}
@@ -1508,7 +1513,7 @@ function _buildFeedHtml(articles, startOffset) {
   return cards.join('');
 }
 
-const CAT_ICONS = { Wars:'⚔️', Economy:'💹', Politics:'🏛️', Health:'🏥', Local:'📍', Crime:'🚨', Environment:'🌿', Jobs:'💼', Auctions:'🏠', Entertainment:'🎭', Exciting:'🔥', Funny:'😂', Rare:'🦄', Wonderful:'🌟', Promoted:'📢' };
+const CAT_ICONS = { Wars:'⚔️', Economy:'💹', Politics:'🏛️', Health:'🏥', Local:'📍', Crime:'🚨', Environment:'🌿', Jobs:'💼', Auctions:'🏠', Technology:'🤖', Automotive:'🚗', Entertainment:'🎭', Exciting:'🔥', Funny:'😂', Rare:'🦄', Wonderful:'🌟', Promoted:'📢' };
 const CAT_HIDDEN = new Set([]);
 
 function renderCategoryTabs() {
@@ -1630,10 +1635,12 @@ function speakText(text, articleId) {
   window.speechSynthesis.speak(utt);
 }
 
-// Build TTS text from article fields: heading, summary, impact, actions now only
+// Build TTS text from article fields: heading, comprehensive summary, impact, actions now only
 function _buildTtsText(a) {
   let parts = [a.title];
-  if (a.summary) parts.push(a.summary);
+  // Prefer the comprehensive summary for reading; fall back to short summary
+  if (a.fullContext) parts.push(a.fullContext);
+  else if (a.summary) parts.push(a.summary);
   if (a.impact && a.impact !== 'Impact analysis pending.') parts.push('What this means for you. ' + a.impact);
   if (a.actionsNow) parts.push('What you can do now. ' + a.actionsNow);
   return parts.join('. ');
@@ -1742,9 +1749,10 @@ async function loadStories() {
   const province = (state.user.province || '').toLowerCase();
 
   let articles = [];
-  const storyCats = ['Community', 'Entertainment', 'Exciting', 'Funny', 'Wonderful', 'Rare'];
+  // Stories are strictly fun/entertainment — no hard news categories
+  const storyCats = ['Entertainment', 'Exciting', 'Funny', 'Wonderful', 'Rare'];
 
-  // Parallel fetch for all story-type categories
+  // Parallel fetch for all story-type categories only
   try {
     const responses = await Promise.all(storyCats.map(cat =>
       fetch(`${API_URL}/feed?category=${cat}&limit=10`).catch(() => null)
@@ -1757,16 +1765,8 @@ async function loadStories() {
     }
   } catch(e) {}
 
-  // Also fetch recent location-specific items (might be unverified)
-  try {
-    if (suburb) {
-      const r = await fetch(`${API_URL}/feed?location=${encodeURIComponent(suburb)}&limit=20`);
-      if (r.ok) { const all = await r.json(); articles = [...articles, ...all]; }
-    }
-  } catch(e) {}
-
-  // Filter for items that should be stories (unverified sources OR specific story categories)
-  articles = articles.filter(a => _isUnverified(a));
+  // Filter strictly to story categories only — no news bleed-through
+  articles = articles.filter(a => STORY_CATEGORIES.has(a.category || ''));
 
   // Deduplicate by article id
   const seen = new Set();
@@ -1793,10 +1793,8 @@ async function loadStories() {
 
 function _isUnverified(a) {
   if (!a) return false;
-  if (STORY_CATEGORIES.has(a.category || '')) return true;
-  const src = (a.source || '').toLowerCase();
-  return src.includes('facebook') || src.includes('fb ') || src.includes('whatsapp') ||
-         src.includes('group') || src.includes('residents') || src.includes('community report');
+  // Only true story categories qualify — community/social-media news stays in cards
+  return STORY_CATEGORIES.has(a.category || '');
 }
 
 function _renderStoriesStrip() {

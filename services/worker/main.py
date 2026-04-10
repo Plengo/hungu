@@ -82,6 +82,10 @@ SCHEDULE = [
     ("sa_local_news",     "scrape_sa_local",          60, True),   #  1 min  — fast (TimesLIVE + M&G)
     ("sa_extra_news",     "scrape_sa_extra",          60, True),   #  1 min  — fast (The SA + eNCA + MyBroadband + EWN + IOL + SABC)
     ("sa_x_accounts",     "scrape_sa_x",              60, True),   #  1 min  — fast (Nitter/X — govt + media)
+    ("stories_feeds",     "scrape_stories",        300, True),   #  5 min  — fast (fun/entertainment/tech story sources)
+    ("ai_tech_news",      "scrape_ai_tech",         600, True),   # 10 min  — AI & tech research (Google AI, MIT, ArXiv, VentureBeat)
+    ("automotive_news",   "scrape_automotive",      600, True),   # 10 min  — Cars, EVs & mobility
+    ("general_tech",      "scrape_general_tech",    600, True),   # 10 min  — Ars Technica, Wired, Slashdot, HN, TechCentral SA
     ("community_news",    "scrape_community",      300, True),   #  5 min  — fast (GroundUp + community journalism)
     ("suburb_community",  "scrape_suburb_community", 1800, True), # 30 min  — suburb-specific FB/local pages per active suburb
     ("gazette_gpw",       "scrape_gazette",         3600, True),   # 60 min  — govt gazette
@@ -109,6 +113,17 @@ def http_get(url: str, timeout: int = 15) -> Optional[str]:
             url, headers={"User-Agent": "HUNGU-Scraper/2.0 (news aggregator)"})
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return resp.read().decode("utf-8", errors="replace")
+    except urllib.error.HTTPError as exc:
+        # Follow 308 Permanent Redirect manually (Python urllib doesn't do this)
+        if exc.code == 308 and exc.headers.get("Location"):
+            loc = exc.headers["Location"]
+            if loc.startswith("/"):
+                from urllib.parse import urlparse
+                p = urlparse(url)
+                loc = f"{p.scheme}://{p.netloc}{loc}"
+            return http_get(loc, timeout)
+        log.warning("GET failed %s: HTTP %s", url, exc.code)
+        return None
     except Exception as exc:
         log.warning("GET failed %s: %s", url, exc)
         return None
@@ -240,27 +255,31 @@ def build_prompt(title: str, raw_text: str, source: str, category: str) -> str:
 Analyse this article and respond ONLY with valid JSON (no markdown, no ```json wrapper).
 
 {{
-  "category": "Choose the most appropriate: Wars, Politics, Economy, Health, Jobs, Local, Crime, Auctions, Entertainment, Exciting, Funny, Wonderful, Rare. Use the 'Story' categories (Entertainment, Exciting, Funny, Wonderful, Rare) if the article is lighthearted, inspiring, unusual, or community-focused.",
+  "category": "Choose the most appropriate: Wars, Politics, Economy, Technology, Automotive, Health, Jobs, Local, Crime, Auctions, Entertainment, Exciting, Funny, Wonderful, Rare. Use Technology for AI, software, gadgets, science. Use Automotive for cars, EVs, mobility. Use the 'Story' categories (Entertainment, Exciting, Funny, Wonderful, Rare) if the article is lighthearted, inspiring, unusual, or community-focused.",
   "summary": "A very short, punchy 1-2 sentence hook summarizing ONLY what is explicitly stated in the article.",
-  "comprehensive_summary": "A full, detailed summary (3-5 sentences). You MUST rely STRICTLY on the facts, dates, names, and scores provided in the article text. DO NOT invent information or pull from historical training data to fill in gaps.",
+  "comprehensive_summary": "A full, detailed summary (5-8 sentences). You MUST rely STRICTLY on the facts, dates, names, and scores provided in the article text. Cover the who, what, when, where, why, and how. Include key numbers, quotes, or outcomes if present. DO NOT invent information or pull from historical training data to fill in gaps.",
   "impact": "2-3 sentences explaining what this means for an ordinary South African citizen today. Keep it real. Look at history, present, and make advantages and disadvantages. Do NOT just support anything blindly.",
   "actions_now": "• Practical things the reader can do RIGHT NOW. If NO immediate action is needed, DO NOT exaggerate — just say 'There is no need for your action currently' and give simple advice.",
   "actions_later": "• Things to do in the coming days/weeks. If NO action is needed, just say 'There is no need for your action currently' and maybe advise something simple to be aware of.",
-  "verse": "ONLY include if the article touches on themes like death, war, suffering, injustice, natural disaster, morality, greed, corruption, or faith. Otherwise leave as empty string.",
+  "verse": "See spiritual rules below — include a real Bible verse reference (e.g. 'Revelation 21:4') when required, otherwise empty string.",
   "verse_text": "If verse is set: the NWT (New World Translation) text of that verse — quote it accurately. Otherwise empty string.",
   "verse_niv": "If verse is set: the same verse quoted in the NIV (New International Version) translation. Otherwise empty string.",
-  "insight": "If verse is set: 1-2 sentences connecting this news event to biblical prophecy or spiritual principles. Otherwise empty string.",
-  "jw_topic": "If verse is set: 3-5 keywords for a JW.org Bible topic search. Otherwise empty string.",
+  "insight": "If verse is set: a compassionate 4-6 sentence JW-style pastoral reflection that: (1) connects this event to fulfilled or ongoing Bible prophecy, (2) acknowledges the pain or injustice involved without sensationalising, (3) shares God's specific promise for those affected (e.g. resurrection, end of suffering, God's Kingdom), and (4) ends with an encouraging word of hope. Do NOT make this preachy or condemning — make it warm, human, and uplifting. Otherwise empty string.",
+  "jw_topic": "If verse is set: 3-5 keywords for a JW.org Bible topic search (e.g. 'God promises end suffering resurrection hope'). Otherwise empty string.",
   "urgent": true or false
 }}
 
 RULES:
 1. The summary MUST be very short (1-2 sentences max). DO NOT HALLUCINATE ANY FACTS.
-2. The comprehensive_summary MUST be detailed but strictly bounded by the provided article text. NEVER guess dates, scores, or names not provided.
+2. The comprehensive_summary MUST be detailed (5-8 sentences), strictly bounded by the provided article text. NEVER guess dates, scores, or names not in the article.
 3. The impact MUST be practical, realistic, state advantages and disadvantages, and be specific to South Africans.
 4. actions_now and actions_later MUST NOT exaggerate danger. If there's nothing to do, literally say 'There is no need for your action currently.' Do NOT instruct the reader to protest, boycott, petition, or take political sides.
-5. Spiritual fields (verse, verse_text, verse_niv, insight, jw_topic) are OPTIONAL. Only include them if the article genuinely connects to deep human themes — death, war, suffering, injustice, disasters, morality, corruption. Do NOT force a verse onto political party elections, sports results, property listings, or routine economic news.
-6. If you do include a verse, it MUST be real and directly relevant. verse_text must be NWT; verse_niv must be the same verse in NIV.
+
+SPIRITUAL CONTEXT RULES (CRITICAL — read carefully):
+5a. MANDATORY — you MUST include a verse when the article is about any of these: murder, violent crime, rape, abuse, human trafficking, terrorism, war, armed conflict, genocide, mass casualties, natural disasters (floods, earthquakes, fires), disease outbreaks, death of civilians, or widespread human suffering.
+5b. PROHIBITED — you MUST leave all spiritual fields empty when the article is about: political elections, political parties, politicians gaining or losing power, sports results, job listings, property or auction listings, economic statistics, or routine government policy. Do NOT say a politician will be removed by God. Do NOT link party politics to prophecy.
+5c. OPTIONAL — you MAY include a verse for: corruption, greed, corporate fraud, environmental destruction, or moral failures in leadership (only when the human harm is clear and significant).
+6. If you include a verse, it MUST be real and directly relevant. verse_text must be NWT; verse_niv must be the same verse in NIV. Prefer verses about God's promise to end suffering, the resurrection hope, the Kingdom of God bringing justice, or comfort in grief — in the style of JW.org teachings.
 7. Return ONLY the JSON object. No extra text before or after.
 
 NEUTRALITY RULES — mandatory for every field:
@@ -571,6 +590,241 @@ def scrape_sa_extra() -> list:
                      "location_tier": "Country", "location_name": "South Africa"} for i in items]
 
     return results
+
+def scrape_stories() -> list:
+    """
+    Fun, entertainment, and interesting story sources —
+    used exclusively for the Stories strip in the app.
+
+    Sources are grouped by output category so the AI prompt gets the right hint.
+    The AI may re-categorise within the story set (Entertainment/Exciting/Funny/Wonderful/Rare).
+
+    Sources verified as RSS-accessible (2025-04):
+      Global fun/weird:  mentalfloss.com, goodnewsnetwork.org, todayifoundout.com,
+                         atlasobscura.com, futurism.com
+      Global tech:       gizmodo.com, techcrunch.com, theverge.com
+      SA entertainment:  okmzansi.co.za, zalebs.com, samusicnews.co.za, yomzansi.com
+
+    Sources returning 403 / no RSS (monitored, will retry):
+      trendhunter.com, entertainmentsa.co.za, tvsa.co.za, ecr.co.za
+    """
+    log.info("Scraping story / entertainment sources...")
+    results = []
+
+    # ── Global fun, trivia & feel-good ──────────────────────────────────────────
+    body = http_get("https://www.mentalfloss.com/rss.xml")
+    if body:
+        items = _parse_rss(body, limit=6)
+        results += [{**i, "source": "Mental Floss", "category": "Funny",
+                     "location_tier": "Global", "location_name": "Global"} for i in items]
+
+    body = http_get("https://www.goodnewsnetwork.org/feed/")
+    if body:
+        items = _parse_rss(body, limit=6)
+        results += [{**i, "source": "Good News Network", "category": "Wonderful",
+                     "location_tier": "Global", "location_name": "Global"} for i in items]
+
+    body = http_get("https://www.todayifoundout.com/index.php/feed/")
+    if body:
+        items = _parse_rss(body, limit=5)
+        results += [{**i, "source": "Today I Found Out", "category": "Rare",
+                     "location_tier": "Global", "location_name": "Global"} for i in items]
+
+    body = http_get("https://www.atlasobscura.com/feeds/latest")
+    if body:
+        items = _parse_rss(body, limit=5)
+        results += [{**i, "source": "Atlas Obscura", "category": "Wonderful",
+                     "location_tier": "Global", "location_name": "Global"} for i in items]
+
+    body = http_get("https://futurism.com/feed")
+    if body:
+        items = _parse_rss(body, limit=5)
+        results += [{**i, "source": "Futurism", "category": "Exciting",
+                     "location_tier": "Global", "location_name": "Global"} for i in items]
+
+    # ── Global tech / gadgets ────────────────────────────────────────────────────
+    body = http_get("https://gizmodo.com/rss")
+    if body:
+        items = _parse_rss(body, limit=5)
+        results += [{**i, "source": "Gizmodo", "category": "Exciting",
+                     "location_tier": "Global", "location_name": "Global"} for i in items]
+
+    body = http_get("https://techcrunch.com/feed/")
+    if body:
+        items = _parse_rss(body, limit=5)
+        results += [{**i, "source": "TechCrunch", "category": "Exciting",
+                     "location_tier": "Global", "location_name": "Global"} for i in items]
+
+    body = http_get("https://www.theverge.com/rss/index.xml")
+    if body:
+        items = _parse_rss(body, limit=5)
+        results += [{**i, "source": "The Verge", "category": "Exciting",
+                     "location_tier": "Global", "location_name": "Global"} for i in items]
+
+    # ── SA entertainment & celebrity ─────────────────────────────────────────────
+    body = http_get("https://okmzansi.co.za/feed/")
+    if body:
+        items = _parse_rss(body, limit=6)
+        results += [{**i, "source": "OK Mzansi", "category": "Entertainment",
+                     "location_tier": "Country", "location_name": "South Africa"} for i in items]
+
+    body = http_get("https://zalebs.com/feed/")
+    if body:
+        items = _parse_rss(body, limit=6)
+        results += [{**i, "source": "ZAlebs", "category": "Entertainment",
+                     "location_tier": "Country", "location_name": "South Africa"} for i in items]
+
+    body = http_get("https://samusicnews.co.za/feed/")
+    if body:
+        items = _parse_rss(body, limit=5)
+        results += [{**i, "source": "SA Music News", "category": "Entertainment",
+                     "location_tier": "Country", "location_name": "South Africa"} for i in items]
+
+    body = http_get("https://yomzansi.com/feed/")
+    if body:
+        items = _parse_rss(body, limit=5)
+        results += [{**i, "source": "Yomzansi", "category": "Entertainment",
+                     "location_tier": "Country", "location_name": "South Africa"} for i in items]
+
+    log.info("Stories scrape: %d items found", len(results))
+    return results
+
+
+def scrape_ai_tech() -> list:
+    """
+    AI & Technology Research sources — appears in the Technology tab of the main feed.
+
+    Sources (RSS-verified):
+      Google AI Blog, MIT Technology Review (AI), ArXiv cs.AI,
+      MarkTechPost, The Rundown AI newsletter, VentureBeat.
+    """
+    log.info("Scraping AI & tech research sources...")
+    results = []
+
+    body = http_get("https://blog.google/technology/ai/rss/")
+    if body:
+        items = _parse_rss(body, limit=5)
+        results += [{**i, "source": "Google AI Blog", "category": "Technology",
+                     "location_tier": "Global", "location_name": "Global"} for i in items]
+
+    body = http_get("https://www.technologyreview.com/topic/artificial-intelligence/feed/")
+    if body:
+        items = _parse_rss(body, limit=5)
+        results += [{**i, "source": "MIT Technology Review", "category": "Technology",
+                     "location_tier": "Global", "location_name": "Global"} for i in items]
+
+    body = http_get("https://rss.arxiv.org/rss/cs.AI")
+    if body:
+        items = _parse_rss(body, limit=4)
+        results += [{**i, "source": "ArXiv cs.AI", "category": "Technology",
+                     "location_tier": "Global", "location_name": "Global"} for i in items]
+
+    body = http_get("https://www.marktechpost.com/feed/")
+    if body:
+        items = _parse_rss(body, limit=5)
+        results += [{**i, "source": "MarkTechPost", "category": "Technology",
+                     "location_tier": "Global", "location_name": "Global"} for i in items]
+
+    body = http_get("https://rss.beehiiv.com/feeds/2R3C6Bt5wj.xml")
+    if body:
+        items = _parse_rss(body, limit=5)
+        results += [{**i, "source": "The Rundown AI", "category": "Technology",
+                     "location_tier": "Global", "location_name": "Global"} for i in items]
+
+    body = http_get("https://venturebeat.com/feed")
+    if body:
+        items = _parse_rss(body, limit=5)
+        results += [{**i, "source": "VentureBeat", "category": "Technology",
+                     "location_tier": "Global", "location_name": "Global"} for i in items]
+
+    log.info("AI & tech scrape: %d items found", len(results))
+    return results
+
+
+def scrape_automotive() -> list:
+    """
+    Cars & Future Mobility sources — appears in the Automotive tab.
+
+    Sources (RSS-verified):
+      Connected Car News, InsideEVs, The Driven, Jalopnik.
+    Skipped (no RSS / connection refused): telematicsnews.info, autonews.com.
+    """
+    log.info("Scraping automotive & EV sources...")
+    results = []
+
+    body = http_get("https://connectedcar-news.com/feed/")
+    if body:
+        items = _parse_rss(body, limit=5)
+        results += [{**i, "source": "Connected Car News", "category": "Automotive",
+                     "location_tier": "Global", "location_name": "Global"} for i in items]
+
+    body = http_get("https://insideevs.com/rss/articles/all/")
+    if body:
+        items = _parse_rss(body, limit=6)
+        results += [{**i, "source": "InsideEVs", "category": "Automotive",
+                     "location_tier": "Global", "location_name": "Global"} for i in items]
+
+    body = http_get("https://thedriven.io/feed/")
+    if body:
+        items = _parse_rss(body, limit=5)
+        results += [{**i, "source": "The Driven", "category": "Automotive",
+                     "location_tier": "Global", "location_name": "Global"} for i in items]
+
+    body = http_get("https://jalopnik.com/rss")
+    if body:
+        items = _parse_rss(body, limit=5)
+        results += [{**i, "source": "Jalopnik", "category": "Automotive",
+                     "location_tier": "Global", "location_name": "Global"} for i in items]
+
+    log.info("Automotive scrape: %d items found", len(results))
+    return results
+
+
+def scrape_general_tech() -> list:
+    """
+    General Technology & South Africa Tech — appears in the Technology tab.
+
+    Sources (RSS-verified):
+      TechCentral SA (SA-specific), Ars Technica, Wired, Slashdot,
+      Hacker News (top posts, min 100 points).
+    Note: The Verge is covered by scrape_stories() already.
+    """
+    log.info("Scraping general tech & SA tech sources...")
+    results = []
+
+    body = http_get("https://techcentral.co.za/feed/")
+    if body:
+        items = _parse_rss(body, limit=6)
+        results += [{**i, "source": "TechCentral", "category": "Technology",
+                     "location_tier": "Country", "location_name": "South Africa"} for i in items]
+
+    body = http_get("https://feeds.arstechnica.com/arstechnica/index")
+    if body:
+        items = _parse_rss(body, limit=5)
+        results += [{**i, "source": "Ars Technica", "category": "Technology",
+                     "location_tier": "Global", "location_name": "Global"} for i in items]
+
+    body = http_get("https://www.wired.com/feed/rss")
+    if body:
+        items = _parse_rss(body, limit=5)
+        results += [{**i, "source": "Wired", "category": "Technology",
+                     "location_tier": "Global", "location_name": "Global"} for i in items]
+
+    body = http_get("https://rss.slashdot.org/Slashdot/slashdotMain")
+    if body:
+        items = _parse_rss(body, limit=5)
+        results += [{**i, "source": "Slashdot", "category": "Technology",
+                     "location_tier": "Global", "location_name": "Global"} for i in items]
+
+    body = http_get("https://hnrss.org/frontpage?points=100")
+    if body:
+        items = _parse_rss(body, limit=5)
+        results += [{**i, "source": "Hacker News", "category": "Technology",
+                     "location_tier": "Global", "location_name": "Global"} for i in items]
+
+    log.info("General tech scrape: %d items found", len(results))
+    return results
+
 
 def scrape_community() -> list:
     """
@@ -1399,6 +1653,10 @@ SCRAPER_FNS = {
     "scrape_gov_news":     scrape_gov_news,
     "scrape_sa_local":     scrape_sa_local,
     "scrape_sa_extra":     scrape_sa_extra,
+    "scrape_stories":      scrape_stories,
+    "scrape_ai_tech":      scrape_ai_tech,
+    "scrape_automotive":   scrape_automotive,
+    "scrape_general_tech": scrape_general_tech,
     "scrape_community":    scrape_community,
     "scrape_suburb_community": scrape_suburb_community,
     "scrape_sa_x":         scrape_sa_x,
