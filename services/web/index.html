@@ -711,6 +711,7 @@ async function initAuth() {
 
   // Load articles in background
   loadApiArticles();
+  setInterval(loadApiArticles, 2 * 60 * 1000); // auto-refresh every 2 min
 
   // Decide starting view
   const visited   = localStorage.getItem('hungu_visited');
