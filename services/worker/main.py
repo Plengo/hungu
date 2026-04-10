@@ -255,7 +255,7 @@ def build_prompt(title: str, raw_text: str, source: str, category: str) -> str:
 Analyse this article and respond ONLY with valid JSON (no markdown, no ```json wrapper).
 
 {{
-  "category": "Choose the most appropriate: Wars, Politics, Economy, Technology, Automotive, Health, Jobs, Local, Crime, Auctions, Entertainment, Exciting, Funny, Wonderful, Rare. Use Technology for AI, software, gadgets, science. Use Automotive for cars, EVs, mobility. Use the 'Story' categories (Entertainment, Exciting, Funny, Wonderful, Rare) if the article is lighthearted, inspiring, unusual, or community-focused.",
+  "category": "Choose the most appropriate: Wars, Politics, Economy, Health, Jobs, Local, Crime, Auctions, Entertainment, Exciting, Funny, Wonderful, Rare. Use the 'Story' categories (Entertainment, Exciting, Funny, Wonderful, Rare) if the article is lighthearted, inspiring, unusual, or community-focused.",
   "summary": "A very short, punchy 1-2 sentence hook summarizing ONLY what is explicitly stated in the article.",
   "comprehensive_summary": "A full, detailed summary (5-8 sentences). You MUST rely STRICTLY on the facts, dates, names, and scores provided in the article text. Cover the who, what, when, where, why, and how. Include key numbers, quotes, or outcomes if present. DO NOT invent information or pull from historical training data to fill in gaps.",
   "impact": "2-3 sentences explaining what this means for an ordinary South African citizen today. Keep it real. Look at history, present, and make advantages and disadvantages. Do NOT just support anything blindly.",
@@ -692,7 +692,7 @@ def scrape_stories() -> list:
 
 def scrape_ai_tech() -> list:
     """
-    AI & Technology Research sources — appears in the Technology tab of the main feed.
+    AI & Technology Research sources — feeds the Stories strip (category=Exciting).
 
     Sources (RSS-verified):
       Google AI Blog, MIT Technology Review (AI), ArXiv cs.AI,
@@ -704,37 +704,37 @@ def scrape_ai_tech() -> list:
     body = http_get("https://blog.google/technology/ai/rss/")
     if body:
         items = _parse_rss(body, limit=5)
-        results += [{**i, "source": "Google AI Blog", "category": "Technology",
+        results += [{**i, "source": "Google AI Blog", "category": "Exciting",
                      "location_tier": "Global", "location_name": "Global"} for i in items]
 
     body = http_get("https://www.technologyreview.com/topic/artificial-intelligence/feed/")
     if body:
         items = _parse_rss(body, limit=5)
-        results += [{**i, "source": "MIT Technology Review", "category": "Technology",
+        results += [{**i, "source": "MIT Technology Review", "category": "Exciting",
                      "location_tier": "Global", "location_name": "Global"} for i in items]
 
     body = http_get("https://rss.arxiv.org/rss/cs.AI")
     if body:
         items = _parse_rss(body, limit=4)
-        results += [{**i, "source": "ArXiv cs.AI", "category": "Technology",
+        results += [{**i, "source": "ArXiv cs.AI", "category": "Rare",
                      "location_tier": "Global", "location_name": "Global"} for i in items]
 
     body = http_get("https://www.marktechpost.com/feed/")
     if body:
         items = _parse_rss(body, limit=5)
-        results += [{**i, "source": "MarkTechPost", "category": "Technology",
+        results += [{**i, "source": "MarkTechPost", "category": "Exciting",
                      "location_tier": "Global", "location_name": "Global"} for i in items]
 
     body = http_get("https://rss.beehiiv.com/feeds/2R3C6Bt5wj.xml")
     if body:
         items = _parse_rss(body, limit=5)
-        results += [{**i, "source": "The Rundown AI", "category": "Technology",
+        results += [{**i, "source": "The Rundown AI", "category": "Exciting",
                      "location_tier": "Global", "location_name": "Global"} for i in items]
 
     body = http_get("https://venturebeat.com/feed")
     if body:
         items = _parse_rss(body, limit=5)
-        results += [{**i, "source": "VentureBeat", "category": "Technology",
+        results += [{**i, "source": "VentureBeat", "category": "Exciting",
                      "location_tier": "Global", "location_name": "Global"} for i in items]
 
     log.info("AI & tech scrape: %d items found", len(results))
@@ -743,7 +743,7 @@ def scrape_ai_tech() -> list:
 
 def scrape_automotive() -> list:
     """
-    Cars & Future Mobility sources — appears in the Automotive tab.
+    Cars & Future Mobility sources — feeds the Stories strip (category=Exciting).
 
     Sources (RSS-verified):
       Connected Car News, InsideEVs, The Driven, Jalopnik.
@@ -755,25 +755,25 @@ def scrape_automotive() -> list:
     body = http_get("https://connectedcar-news.com/feed/")
     if body:
         items = _parse_rss(body, limit=5)
-        results += [{**i, "source": "Connected Car News", "category": "Automotive",
+        results += [{**i, "source": "Connected Car News", "category": "Exciting",
                      "location_tier": "Global", "location_name": "Global"} for i in items]
 
     body = http_get("https://insideevs.com/rss/articles/all/")
     if body:
         items = _parse_rss(body, limit=6)
-        results += [{**i, "source": "InsideEVs", "category": "Automotive",
+        results += [{**i, "source": "InsideEVs", "category": "Exciting",
                      "location_tier": "Global", "location_name": "Global"} for i in items]
 
     body = http_get("https://thedriven.io/feed/")
     if body:
         items = _parse_rss(body, limit=5)
-        results += [{**i, "source": "The Driven", "category": "Automotive",
+        results += [{**i, "source": "The Driven", "category": "Exciting",
                      "location_tier": "Global", "location_name": "Global"} for i in items]
 
     body = http_get("https://jalopnik.com/rss")
     if body:
         items = _parse_rss(body, limit=5)
-        results += [{**i, "source": "Jalopnik", "category": "Automotive",
+        results += [{**i, "source": "Jalopnik", "category": "Exciting",
                      "location_tier": "Global", "location_name": "Global"} for i in items]
 
     log.info("Automotive scrape: %d items found", len(results))
@@ -782,7 +782,7 @@ def scrape_automotive() -> list:
 
 def scrape_general_tech() -> list:
     """
-    General Technology & South Africa Tech — appears in the Technology tab.
+    General Technology & South Africa Tech — feeds the Stories strip (category=Exciting).
 
     Sources (RSS-verified):
       TechCentral SA (SA-specific), Ars Technica, Wired, Slashdot,
@@ -795,25 +795,25 @@ def scrape_general_tech() -> list:
     body = http_get("https://techcentral.co.za/feed/")
     if body:
         items = _parse_rss(body, limit=6)
-        results += [{**i, "source": "TechCentral", "category": "Technology",
+        results += [{**i, "source": "TechCentral", "category": "Exciting",
                      "location_tier": "Country", "location_name": "South Africa"} for i in items]
 
     body = http_get("https://feeds.arstechnica.com/arstechnica/index")
     if body:
         items = _parse_rss(body, limit=5)
-        results += [{**i, "source": "Ars Technica", "category": "Technology",
+        results += [{**i, "source": "Ars Technica", "category": "Exciting",
                      "location_tier": "Global", "location_name": "Global"} for i in items]
 
     body = http_get("https://www.wired.com/feed/rss")
     if body:
         items = _parse_rss(body, limit=5)
-        results += [{**i, "source": "Wired", "category": "Technology",
+        results += [{**i, "source": "Wired", "category": "Exciting",
                      "location_tier": "Global", "location_name": "Global"} for i in items]
 
     body = http_get("https://rss.slashdot.org/Slashdot/slashdotMain")
     if body:
         items = _parse_rss(body, limit=5)
-        results += [{**i, "source": "Slashdot", "category": "Technology",
+        results += [{**i, "source": "Slashdot", "category": "Exciting",
                      "location_tier": "Global", "location_name": "Global"} for i in items]
 
     body = http_get("https://hnrss.org/frontpage?points=100")
