@@ -950,7 +950,72 @@ const AD_READY  = true;
 
 const IS_LOCAL = ['localhost', '127.0.0.1', '0.0.0.0'].includes(window.location.hostname);
 
-function adCard() {
+// ─── Travelstart Affiliate Ads ────────────────────────────────────────────────
+const _TS_FEED_ADS = [
+  {
+    img:   '//a.impactradius-go.com/display-ad/5446-3854691',
+    href:  'https://travelstart.zwjlk6.net/c/1958165/3854691/5446',
+    pixel: 'https://travelstart.zwjlk6.net/i/1958165/3854691/5446',
+    title: 'Fly somewhere warm ☀️ Your summer holiday starts here!',
+    body:  'Book cheap flights, hotels and holidays across SA and beyond.',
+  },
+  {
+    img:   '//a.impactradius-go.com/display-ad/5446-3854690',
+    href:  'https://travelstart.zwjlk6.net/c/1958165/3854690/5446',
+    pixel: 'https://travelstart.zwjlk6.net/i/1958165/3854690/5446',
+    title: 'Miss the cold? Plan your escape ✈️',
+    body:  'Compare hundreds of airlines and find the best deals on summer getaways.',
+  },
+  {
+    img:   '//a.impactradius-go.com/display-ad/5446-3854692',
+    href:  'https://travelstart.zwjlk6.net/c/1958165/3854692/5446',
+    pixel: 'https://travelstart.zwjlk6.net/i/1958165/3854692/5446',
+    title: 'Summer holiday deals — find your paradise 🌴',
+    body:  'Flights, hotels, car hire and travel packages. All in one place.',
+  },
+];
+const _TS_STORY_ADS = [
+  {
+    img:   '//a.impactradius-go.com/display-ad/5446-3854687',
+    href:  'https://travelstart.zwjlk6.net/c/1958165/3854687/5446',
+    pixel: 'https://travelstart.zwjlk6.net/i/1958165/3854687/5446',
+    label: 'Book your escape ✈️',
+  },
+  {
+    img:   '//a.impactradius-go.com/display-ad/5446-3854690',
+    href:  'https://travelstart.zwjlk6.net/c/1958165/3854690/5446',
+    pixel: 'https://travelstart.zwjlk6.net/i/1958165/3854690/5446',
+    label: 'Summer flights ☀️',
+  },
+];
+
+function _adCardTravelstart() {
+  const ad = _TS_FEED_ADS[Math.floor(Math.random() * _TS_FEED_ADS.length)];
+  return `<article class="bg-white mb-2">
+    <div class="flex items-center gap-3 px-4 pt-4 pb-2">
+      <div class="w-10 h-10 rounded-full bg-[#e8f7fc] border-2 border-[#87ceeb]/40 flex items-center justify-center text-lg flex-shrink-0">✈️</div>
+      <div class="flex-1 min-w-0">
+        <span class="font-bold text-slate-800 text-sm">Travelstart</span>
+        <p class="text-[11px] text-slate-400 mt-0.5">✨ Sponsored</p>
+      </div>
+    </div>
+    <p class="px-4 pb-2 text-[15px] font-extrabold text-slate-900 leading-snug">${ad.title}</p>
+    <a rel="sponsored" href="${ad.href}" target="_top" class="block w-full" style="aspect-ratio:16/9;display:block">
+      <img src="${ad.img}" alt="Travelstart" border="0" class="w-full h-full object-cover" loading="lazy"/>
+    </a>
+    <img height="0" width="0" src="${ad.pixel}" style="position:absolute;visibility:hidden;" border="0"/>
+    <div class="px-4 pt-3 pb-1">
+      <p class="text-slate-500 text-[13px] leading-relaxed">${ad.body}</p>
+    </div>
+    <div class="border-t border-slate-100 mt-1 flex">
+      <a rel="sponsored" href="${ad.href}" target="_top" class="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[12px] font-bold text-[#4a90a4] hover:bg-slate-50 press">
+        ✈️ Book Now
+      </a>
+    </div>
+  </article>`;
+}
+
+function _adCardAdsense() {
   const id = 'ad-' + Math.random().toString(36).slice(2, 8);
   if (AD_READY && !IS_LOCAL) {
     setTimeout(() => {
@@ -966,18 +1031,36 @@ function adCard() {
       <ins class="adsbygoogle" style="display:block" data-ad-client="${AD_CLIENT}" data-ad-slot="${AD_SLOT}" data-ad-format="fluid" data-full-width-responsive="true" id="${id}"></ins>
     </div>`;
   }
-  // Placeholder on localhost or before AdSense is configured
   return `<div class="bg-white mb-2 px-4 py-4">
     <p class="text-[9px] font-bold uppercase text-slate-400 tracking-widest mb-2">Advertisement</p>
     <div class="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 flex flex-col items-center justify-center gap-2 py-6">
       <span class="text-2xl">📢</span>
       <p class="text-xs font-bold text-slate-400">Google AdSense Ad</p>
-      <p class="text-[10px] text-slate-300">728×90 · Fluid</p>
     </div>
   </div>`;
 }
 
-function adStoryCard() {
+function adCard() {
+  return Math.random() < 0.5 ? _adCardTravelstart() : _adCardAdsense();
+}
+
+function _adStoryCardTravelstart() {
+  const ad = _TS_STORY_ADS[Math.floor(Math.random() * _TS_STORY_ADS.length)];
+  return `<a rel="sponsored" href="${ad.href}" target="_top" class="flex-shrink-0 press" style="width:130px;display:block">
+    <div class="relative rounded-2xl overflow-hidden border-[3px] shadow-sm" style="width:130px;height:170px;border-color:#87ceeb">
+      <img src="${ad.img}" class="w-full h-full object-cover" loading="lazy" alt="Travelstart"/>
+      <div class="absolute inset-0" style="background:linear-gradient(0deg,rgba(0,0,0,0.75) 0%,rgba(0,0,0,0.1) 50%,rgba(0,0,0,0.3) 100%)"></div>
+      <span class="absolute top-1.5 left-1.5 bg-white/80 text-black text-[13px] font-black w-5 h-5 rounded-full flex items-center justify-center leading-none shadow">✈️</span>
+      <div class="absolute bottom-0 left-0 right-0 p-2">
+        <p class="text-[9px] font-bold text-white/70 truncate">Travelstart</p>
+        <p class="text-[11px] font-bold text-white leading-tight">${ad.label}</p>
+      </div>
+    </div>
+    <img height="0" width="0" src="${ad.pixel}" style="position:absolute;visibility:hidden;" border="0"/>
+  </a>`;
+}
+
+function _adStoryCardAdsense() {
   const id = 'ad-story-' + Math.random().toString(36).slice(2, 8);
   if (AD_READY && !IS_LOCAL) {
     setTimeout(() => {
@@ -1002,6 +1085,10 @@ function adStoryCard() {
       <p class="text-[9px] font-bold text-slate-400">AdSense</p>
     </div>
   </div>`;
+}
+
+function adStoryCard() {
+  return Math.random() < 0.5 ? _adStoryCardTravelstart() : _adStoryCardAdsense();
 }
 
 function newsCard(raw) {
