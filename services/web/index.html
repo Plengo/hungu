@@ -676,7 +676,10 @@ function showView(name, opts = {}) {
     // If returning from article detail, restore scroll without re-rendering
     if (prevView === 'detail' && state._feedScrollTop != null) {
       const feedList = document.getElementById('feed-list');
-      if (feedList) requestAnimationFrame(() => { feedList.scrollTop = state._feedScrollTop; });
+      // Double-rAF ensures the browser has laid out the now-visible element before we set scrollTop
+      if (feedList) requestAnimationFrame(() => requestAnimationFrame(() => {
+        feedList.scrollTop = state._feedScrollTop;
+      }));
     } else {
       renderFeed();
     }
@@ -1047,14 +1050,23 @@ function newsCard(raw) {
 
 // ─── Swipe-to-Go-Back Navigation ──────────────────────────────────────────────
 let _swipeStartX = null;
+let _swipeStartY = null;
 function _addSwipeBack(el, onBack) {
   if (!el) return;
-  el.ontouchstart = e => { if (e.touches.length === 1) _swipeStartX = e.touches[0].clientX; };
+  el.ontouchstart = e => {
+    if (e.touches.length === 1) {
+      _swipeStartX = e.touches[0].clientX;
+      _swipeStartY = e.touches[0].clientY;
+    }
+  };
   el.ontouchend = e => {
     if (_swipeStartX === null) return;
     const dx = e.changedTouches[0].clientX - _swipeStartX;
-    if (dx > 60) { onBack && onBack(); }
+    const dy = e.changedTouches[0].clientY - _swipeStartY;
+    // Only trigger if more horizontal than vertical and distance >60px from left edge
+    if (dx > 60 && Math.abs(dx) > Math.abs(dy) * 1.2) { onBack && onBack(); }
     _swipeStartX = null;
+    _swipeStartY = null;
   };
 }
 
