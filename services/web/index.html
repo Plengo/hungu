@@ -671,14 +671,14 @@ function showView(name, opts = {}) {
   const prevView = state.currentView;
   state.prevView = prevView;
   state.currentView = name;
-  window.scrollTo(0, 0);
+  // When returning to feed from article detail, restore scroll position instead of jumping to top
+  const restoringFeed = (name === 'feed' && prevView === 'detail' && state._feedScrollTop != null);
+  if (!restoringFeed) window.scrollTo(0, 0);
   if (name === 'feed') {
-    // If returning from article detail, restore scroll without re-rendering
-    if (prevView === 'detail' && state._feedScrollTop != null) {
-      const feedList = document.getElementById('feed-list');
-      // Double-rAF ensures the browser has laid out the now-visible element before we set scrollTop
-      if (feedList) requestAnimationFrame(() => requestAnimationFrame(() => {
-        feedList.scrollTop = state._feedScrollTop;
+    if (restoringFeed) {
+      // Restore without re-rendering — double-rAF ensures layout is complete
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        window.scrollTo({ top: state._feedScrollTop, behavior: 'instant' });
       }));
     } else {
       renderFeed();
@@ -1138,9 +1138,8 @@ function getArticleById(id) {
 }
 
 async function openArticle(id) {
-  // Save feed scroll position for back navigation
-  const feedList = document.getElementById('feed-list');
-  if (feedList) state._feedScrollTop = feedList.scrollTop;
+  // Save feed scroll position for back navigation (window scrolls in feed view)
+  state._feedScrollTop = window.scrollY || 0;
   
   let raw = getArticleById(id);
   
