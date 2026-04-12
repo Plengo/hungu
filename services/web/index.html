@@ -258,7 +258,7 @@
     </div>
 
     <!-- Feed list -->
-    <main id="feed-list" class="flex-1 overflow-y-auto scroll-hide pt-2 pb-28 fade-in">
+    <main id="feed-list" class="flex-1 overflow-y-auto scroll-hide pt-2 pb-28">
       <!-- Injected by JS -->
     </main>
 
@@ -873,6 +873,10 @@ const TIER_ORDER = { Suburb: 1, City: 2, Province: 3, Country: 4, Global: 5 };
 
 function renderFeed() {
   const list  = document.getElementById('feed-list');
+  // Replay fade-in only on fresh renders, not on back-navigation
+  list.classList.remove('fade-in');
+  void list.offsetWidth; // force reflow
+  list.classList.add('fade-in');
   const badge = document.getElementById('location-badge');
   const pulse = document.getElementById('pulse-location');
   if (badge) badge.textContent = state.user.suburb || 'My Area';
