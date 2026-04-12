@@ -1678,6 +1678,7 @@ function toggleReading() {
 // ─── Community Stories ───────────────────────────────────────────────────────
 let _stories = [];
 let _storyIdx = 0;
+let _storyScrollY = 0;  // scroll position before opening a story
 
 // Track viewed story IDs in localStorage so viewed ones move to the end
 function _getViewedStories() {
@@ -1884,6 +1885,7 @@ function openStory(idx) {
     // find the button by data or simply re-render the strip
     _renderStoriesStrip();
   }
+  _storyScrollY = window.scrollY || 0;  // save position so swipe-right can restore it
   document.getElementById('story-viewer').classList.remove('hidden');
   document.body.style.overflow = 'hidden';
   _renderCurrentStory();
@@ -1895,6 +1897,8 @@ function closeStory() {
   clearTimeout(_storyTimer);
   document.getElementById('story-viewer').classList.add('hidden');
   document.body.style.overflow = '';
+  // Restore the feed scroll position the user was at before opening stories
+  requestAnimationFrame(() => window.scrollTo({ top: _storyScrollY, behavior: 'instant' }));
 }
 
 function _renderCurrentStory() {
@@ -1954,11 +1958,24 @@ function _openStoryArticle() {
 }
 
 let _storyTouchX = 0;
+let _storyTouchY = 0;
+let _storyTouchTime = 0;
 function _storyAddSwipe(el) {
-  el.ontouchstart = e => { _storyTouchX = e.touches[0].clientX; };
-  el.ontouchend   = e => {
+  el.ontouchstart = e => {
+    _storyTouchX    = e.touches[0].clientX;
+    _storyTouchY    = e.touches[0].clientY;
+    _storyTouchTime = Date.now();
+  };
+  el.ontouchend = e => {
     const dx = e.changedTouches[0].clientX - _storyTouchX;
-    if (Math.abs(dx) > 45) { dx < 0 ? _storyNext() : _storyPrev(); }
+    const dy = e.changedTouches[0].clientY - _storyTouchY;
+    const dt = Date.now() - _storyTouchTime;
+    // Must be more horizontal than vertical to count as a swipe
+    if (Math.abs(dx) <= Math.abs(dy) * 1.2) return;
+    // Swipe RIGHT with enough distance → close viewer, return to feed
+    if (dx > 60) { closeStory(); return; }
+    // Swipe LEFT → next story
+    if (dx < -45) { _storyNext(); }
   };
 }
 
