@@ -1275,8 +1275,11 @@ def _enrich_single(art: dict) -> tuple[str, bool]:
     if not ai:
         return (art["id"], False)
     
-    # Allow AI to recategorize
+    # Allow AI to recategorize — but NEVER pull story-category articles into hard-news categories
+    STORY_CATS = {'Entertainment', 'Exciting', 'Funny', 'Wonderful', 'Rare'}
     new_cat = ai.get("category", art["category"])
+    if art.get("category") in STORY_CATS and new_cat not in STORY_CATS:
+        new_cat = art["category"]   # preserve original story category
     jw_link = _jw_link_for(new_cat, ai.get("jw_topic", ""))
     
     payload = json.dumps({

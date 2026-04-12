@@ -1678,6 +1678,20 @@ function toggleReading() {
 // ─── Community Stories ───────────────────────────────────────────────────────
 let _stories = [];
 let _storyIdx = 0;
+
+// Track viewed story IDs in localStorage so viewed ones move to the end
+function _getViewedStories() {
+  try { return new Set(JSON.parse(localStorage.getItem('hungu_viewed_stories') || '[]')); }
+  catch(e) { return new Set(); }
+}
+function _markStoryViewed(id) {
+  if (!id) return;
+  const viewed = _getViewedStories();
+  viewed.add(String(id));
+  // Keep at most 200 IDs to avoid bloat
+  const arr = [...viewed].slice(-200);
+  try { localStorage.setItem('hungu_viewed_stories', JSON.stringify(arr)); } catch(e) {}
+}
 let _storyTimer = null;
 
 // ─── Google Places autocomplete ───────────────────────────────────────────────
@@ -1788,7 +1802,11 @@ async function loadStories() {
     return sc(a) - sc(b);
   });
 
-  _stories = articles.slice(0, 20);
+  // Sort: unviewed first (preserving location order), viewed ones at the end
+  const viewed = _getViewedStories();
+  const unviewed = articles.filter(a => !viewed.has(String(a.id)));
+  const viewedArr = articles.filter(a => viewed.has(String(a.id)));
+  _stories = [...unviewed, ...viewedArr].slice(0, 20);
   _renderStoriesStrip();
 }
 
@@ -1815,11 +1833,14 @@ function _renderStoriesStrip() {
     const label = (a.title || '').slice(0, 36) + (a.title && a.title.length > 36 ? '…' : '');
     const isLocal = suburb && (a.location_name || '').toLowerCase().includes(suburb.toLowerCase());
     const unverified = _isUnverified(a);
-    const ring = unverified
-      ? 'border-color:rgb(217,119,6)'        /* amber = community/unverified */
-      : isLocal
-        ? 'border-color:#4a90a4'              /* blue = your area, verified */
-        : 'border-color:#cbd5e1';             /* grey = general */
+    const isViewed = _getViewedStories().has(String(a.id));
+    const ring = isViewed
+      ? 'border-color:#cbd5e1;opacity:0.55'  /* dimmed = already viewed */
+      : unverified
+        ? 'border-color:rgb(217,119,6)'      /* amber = community/unverified */
+        : isLocal
+          ? 'border-color:#4a90a4'           /* blue = your area, verified */
+          : 'border-color:#cbd5e1';          /* grey = general */
     const src = a.source || '';
     // Show category icon for story types
     const catIcon = CAT_ICONS[a.category] ? `<span class="absolute top-1.5 left-1.5 bg-white/80 text-black text-[13px] font-black w-5 h-5 rounded-full flex items-center justify-center leading-none shadow">${CAT_ICONS[a.category]}</span>` : '';
@@ -1854,6 +1875,15 @@ function _renderStoriesStrip() {
 
 function openStory(idx) {
   _storyIdx = Math.max(0, Math.min(idx, _stories.length - 1));
+  // Mark as viewed and move to end next time the strip re-renders
+  const story = _stories[_storyIdx];
+  if (story) {
+    _markStoryViewed(story.id);
+    // Update the card opacity immediately without full re-render
+    const btn = document.querySelectorAll('#stories-row > button');
+    // find the button by data or simply re-render the strip
+    _renderStoriesStrip();
+  }
   document.getElementById('story-viewer').classList.remove('hidden');
   document.body.style.overflow = 'hidden';
   _renderCurrentStory();
