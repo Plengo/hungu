@@ -653,6 +653,7 @@ const state = {
   reading: false,
 };
 
+let _saveStateTimer = null;
 function saveState() {
   localStorage.setItem('hungu_user',  JSON.stringify(state.user));
   localStorage.setItem('hungu_byok',  JSON.stringify(state.byok));
@@ -660,6 +661,10 @@ function saveState() {
   localStorage.setItem('hungu_read',  JSON.stringify(state.read));
   if (state.uid)   localStorage.setItem('hungu_uid',   state.uid);
   if (state.token) localStorage.setItem('hungu_token', state.token);
+}
+function saveStateDebounced() {
+  clearTimeout(_saveStateTimer);
+  _saveStateTimer = setTimeout(saveState, 400);
 }
 
 // ─── View Router ───────────────────────────────────────────────────────────────
@@ -1346,7 +1351,7 @@ function updateStats() {
   if (ss) ss.textContent = state.saved.length;
 }
 
-function updateUser(field, value) { state.user[field] = value; saveState(); }
+function updateUser(field, value) { state.user[field] = value; saveStateDebounced(); }
 
 function syncLocFields() {
   const f = document.getElementById('loc-from');
