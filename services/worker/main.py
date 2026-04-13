@@ -251,7 +251,8 @@ def call_gemini(prompt: str, api_key: str = "") -> Optional[dict]:
     return call_ai(prompt)
 
 def build_prompt(title: str, raw_text: str, source: str, category: str) -> str:
-    return f"""You are the HUNGU AI engine — a South African Christian news analyser.
+    """Phase 1 — Facts only. Spiritual context is handled by the dedicated 3-phase pipeline."""
+    return f"""You are the HUNGU AI engine — a South African news analyser.
 Analyse this article and respond ONLY with valid JSON (no markdown, no ```json wrapper).
 
 {{
@@ -261,11 +262,6 @@ Analyse this article and respond ONLY with valid JSON (no markdown, no ```json w
   "impact": "2-3 sentences explaining what this means for an ordinary South African citizen today. Keep it real. Look at history, present, and make advantages and disadvantages. Do NOT just support anything blindly.",
   "actions_now": "• Practical things the reader can do RIGHT NOW. If NO immediate action is needed, DO NOT exaggerate — just say 'There is no need for your action currently' and give simple advice.",
   "actions_later": "• Things to do in the coming days/weeks. If NO action is needed, just say 'There is no need for your action currently' and maybe advise something simple to be aware of.",
-  "verse": "See spiritual rules below — include a real Bible verse reference (e.g. 'Revelation 21:4') when required, otherwise empty string.",
-  "verse_text": "If verse is set: the NWT (New World Translation) text of that verse — quote it accurately. Otherwise empty string.",
-  "verse_niv": "If verse is set: the same verse quoted in the NIV (New International Version) translation. Otherwise empty string.",
-  "insight": "If verse is set: a compassionate 4-6 sentence JW-style pastoral reflection that: (1) connects this event to fulfilled or ongoing Bible prophecy, (2) acknowledges the pain or injustice involved without sensationalising, (3) shares God's specific promise for those affected (e.g. resurrection, end of suffering, God's Kingdom), and (4) ends with an encouraging word of hope. Do NOT make this preachy or condemning — make it warm, human, and uplifting. Otherwise empty string.",
-  "jw_topic": "If verse is set: 3-5 keywords for a JW.org Bible topic search (e.g. 'God promises end suffering resurrection hope'). Otherwise empty string.",
   "urgent": true or false
 }}
 
@@ -274,19 +270,13 @@ RULES:
 2. The comprehensive_summary MUST be detailed (5-8 sentences), strictly bounded by the provided article text. NEVER guess dates, scores, or names not in the article.
 3. The impact MUST be practical, realistic, state advantages and disadvantages, and be specific to South Africans.
 4. actions_now and actions_later MUST NOT exaggerate danger. If there's nothing to do, literally say 'There is no need for your action currently.' Do NOT instruct the reader to protest, boycott, petition, or take political sides.
-
-SPIRITUAL CONTEXT RULES (CRITICAL — read carefully):
-5a. MANDATORY — you MUST include a verse when the article is about any of these: murder, violent crime, rape, abuse, human trafficking, terrorism, war, armed conflict, genocide, mass casualties, natural disasters (floods, earthquakes, fires), disease outbreaks, death of civilians, or widespread human suffering.
-5b. PROHIBITED — you MUST leave all spiritual fields empty when the article is about: political elections, political parties, politicians gaining or losing power, sports results, job listings, property or auction listings, economic statistics, or routine government policy. Do NOT say a politician will be removed by God. Do NOT link party politics to prophecy.
-5c. OPTIONAL — you MAY include a verse for: corruption, greed, corporate fraud, environmental destruction, or moral failures in leadership (only when the human harm is clear and significant).
-6. If you include a verse, it MUST be real and directly relevant. verse_text must be NWT; verse_niv must be the same verse in NIV. Prefer verses about God's promise to end suffering, the resurrection hope, the Kingdom of God bringing justice, or comfort in grief — in the style of JW.org teachings.
-7. Return ONLY the JSON object. No extra text before or after.
+5. Return ONLY the JSON object. No extra text before or after.
 
 NEUTRALITY RULES — mandatory for every field:
-8. Use the official name of every government, organisation, and country at all times. NEVER substitute with subjective labels — do NOT write "regime", "terrorist group", "radical", "extremist", "illegal government", "freedom fighters", "occupation force", or "controversial" unless you are directly quoting a named person from the article.
-9. When a law, policy, cultural rule, or political outcome is contested (e.g. dress-code laws, election results, protest crackdowns, religious requirements in sport), describe ONLY the verifiable facts — what was decided, by whom, and what the stated effect is. Do NOT endorse or condemn either side.
-10. Do NOT characterise any leader, political party, or institution as good or bad. Stick strictly to what the article states happened — not what any party claims, implies, or alleges unless clearly attributed.
-11. The impact and actions fields must reflect objective, practical consequences for ordinary South Africans — not editorial opinion or moral judgment.
+6. Use the official name of every government, organisation, and country at all times. NEVER substitute with subjective labels — do NOT write "regime", "terrorist group", "radical", "extremist", "illegal government", "freedom fighters", "occupation force", or "controversial" unless you are directly quoting a named person from the article.
+7. When a law, policy, cultural rule, or political outcome is contested, describe ONLY the verifiable facts — what was decided, by whom, and what the stated effect is. Do NOT endorse or condemn either side.
+8. Do NOT characterise any leader, political party, or institution as good or bad. Stick strictly to what the article states happened.
+9. The impact and actions fields must reflect objective, practical consequences for ordinary South Africans — not editorial opinion or moral judgment.
 
 Source: {source}
 Category: {category}
@@ -299,6 +289,187 @@ def _jw_link_for(category: str, jw_topic: str) -> str:
     """Return a JW.org search URL for end-times Bible prophecy relevant to the topic."""
     query = urllib.parse.quote_plus(f"end times bible prophecies {jw_topic}".strip())
     return f"https://www.jw.org/en/search/?q={query}"
+
+
+# ─── 3-Phase Spiritual Enrichment Pipeline ────────────────────────────────────
+
+def _fetch_jw_snippets(search_terms: str) -> str:
+    """
+    Phase 2B — Fetch real content from the Watchtower Online Library (wol.jw.org).
+    Returns a plain-text block of article titles and excerpts, or empty string on failure.
+    """
+    try:
+        url = "https://wol.jw.org/en/wol/s/r1/lp-e?q=" + urllib.parse.quote_plus(search_terms)
+        req = urllib.request.Request(url, headers={
+            "User-Agent": "Mozilla/5.0 (compatible; HUNGU/2.0)",
+            "Accept": "text/html,application/xhtml+xml",
+        })
+        with urllib.request.urlopen(req, timeout=12) as resp:
+            html = resp.read().decode("utf-8", errors="ignore")
+
+        # Strip scripts, styles, and navigation clutter
+        html = re.sub(r'<script[\s\S]*?</script>', '', html, flags=re.IGNORECASE)
+        html = re.sub(r'<style[\s\S]*?</style>', '', html, flags=re.IGNORECASE)
+        html = re.sub(r'<nav[\s\S]*?</nav>', '', html, flags=re.IGNORECASE)
+        html = re.sub(r'<header[\s\S]*?</header>', '', html, flags=re.IGNORECASE)
+        html = re.sub(r'<footer[\s\S]*?</footer>', '', html, flags=re.IGNORECASE)
+
+        # Extract result titles (h2/h3 or links)
+        titles   = re.findall(r'<(?:h[123]|a)[^>]*>(.*?)</(?:h[123]|a)>', html, re.IGNORECASE | re.DOTALL)
+        excerpts = re.findall(r'<p[^>]*class="[^"]*(?:result|synopsis|snippet|excerpt|text)[^"]*"[^>]*>(.*?)</p>',
+                               html, re.IGNORECASE | re.DOTALL)
+
+        def _clean(s: str) -> str:
+            s = re.sub(r'<[^>]+>', '', s)
+            return re.sub(r'\s+', ' ', s).strip()
+
+        titles   = [_clean(t) for t in titles   if len(_clean(t)) > 10][:6]
+        excerpts = [_clean(e) for e in excerpts if len(_clean(e)) > 20][:6]
+
+        lines = []
+        for i, t in enumerate(titles):
+            lines.append(f"Result {i+1}: {t}")
+            if i < len(excerpts):
+                lines.append(f"  Excerpt: {excerpts[i]}")
+
+        if not lines:
+            # Fallback: extract all visible text and return first 1600 chars
+            text = re.sub(r'<[^>]+>', ' ', html)
+            text = re.sub(r'\s+', ' ', text).strip()
+            return text[:1600]
+
+        return "\n".join(lines)[:2000]
+    except Exception as exc:
+        log.warning("JW.org fetch failed (%s) — spiritual synthesis will use AI knowledge only", exc)
+        return ""
+
+
+def build_spiritual_triage_prompt(title: str, full_context: str, category: str, summary: str) -> str:
+    """
+    Phase 2A — Determine whether spiritual context is appropriate and extract search terms.
+    Small focused prompt; fast to run.
+    """
+    return f"""You are a compassionate Christian spiritual triage analyst for HUNGU News.
+Decide ONLY whether this article warrants a Bible-based spiritual reflection, and if so, extract search terms for JW.org.
+Respond ONLY with valid JSON (no markdown).
+
+{{
+  "eligible": true or false,
+  "reason": "One sentence.",
+  "human_theme": "If eligible: describe the core human struggle in plain language (e.g. 'families torn apart by gang violence', 'communities devastated by flooding', 'children trafficked across borders'). Otherwise empty string.",
+  "tone": "If eligible: one word — grief / hope / justice / comfort / warning. Otherwise empty string.",
+  "jw_search_terms": "If eligible: 6-10 keywords for a JW.org/WOL search that will find comforting Bible study articles (e.g. 'God promises end suffering resurrection hope Kingdom justice'). Otherwise empty string."
+}}
+
+ELIGIBILITY RULES — read strictly:
+ELIGIBLE (set eligible=true): murder, violent crime, rape, abuse, human trafficking, terrorism, war, armed conflict, genocide, mass casualties, natural disasters, disease outbreaks, civilian deaths, widespread suffering, corruption with clear victims, environmental harm hurting people, moral failure causing harm to others.
+NOT ELIGIBLE (set eligible=false): elections, party politics, politicians gaining/losing power, sports scores, job listings, property/auction listings, economic statistics and indices, routine government policy, product launches, entertainment celebrity gossip.
+
+Category: {category}
+Title: {title}
+Summary: {summary}
+Article context: {full_context[:1200]}
+"""
+
+
+def build_spiritual_synthesis_prompt(
+    title: str, full_context: str, human_theme: str, tone: str, jw_results: str
+) -> str:
+    """
+    Phase 2C — Write the actual spiritual reflection using the article + JW.org content.
+    """
+    jw_section = (
+        f"Relevant JW.org / WOL content retrieved:\n{jw_results}"
+        if jw_results.strip()
+        else "No JW.org results were retrieved — draw on your knowledge of JW teachings and the Bible."
+    )
+    return f"""You are the HUNGU spiritual reflection writer — a compassionate JW-Christian pastoral voice.
+Using the article and the JW.org research below, write a meaningful spiritual reflection.
+Respond ONLY with valid JSON (no markdown).
+
+{{
+  "verse": "A specific, accurate Bible verse reference that directly speaks to this human situation (e.g. 'Revelation 21:4', 'Psalm 46:1', 'Isaiah 41:10'). Must be a real verse.",
+  "verse_text": "The EXACT NWT (New World Translation) wording of that verse.",
+  "verse_niv": "The EXACT NIV (New International Version) wording of the same verse.",
+  "insight": "A compassionate 4-6 sentence JW-style pastoral reflection. It must: (1) connect this specific event to Bible prophecy or God's promises, (2) acknowledge the pain or injustice without sensationalising, (3) share God's specific promise for those affected — resurrection hope, God's Kingdom ending suffering, divine justice, (4) end with an encouraging word of real hope. Keep it warm, human, and uplifting — NOT preachy, NOT condemning.",
+  "jw_link": "If a clear JW.org or wol.jw.org URL appears in the search results below that is directly relevant, include it here. Otherwise empty string."
+}}
+
+CRITICAL ACCURACY RULES:
+- The verse MUST be real and accurately quoted. Prefer Revelation 21:1-4, Psalm 34:18, Isaiah 41:10, John 5:28-29, Acts 24:15, Matthew 5:4, Romans 8:38-39 for suffering/hope.
+- verse_text MUST be the genuine NWT translation.
+- verse_niv MUST be the genuine NIV translation of the SAME verse.
+- The insight MUST reference THIS specific event and human theme — not be a generic reflection.
+- Do NOT mention the Watchtower Society or "Jehovah's Witnesses" by name in the insight — keep it pastoral.
+
+Human theme: {human_theme}
+Tone needed: {tone}
+Article title: {title}
+Article context: {full_context[:1400]}
+
+{jw_section}
+"""
+
+
+def _run_spiritual_pipeline(
+    title: str, full_context: str, category: str, summary: str
+) -> tuple:
+    """
+    Orchestrates the 3-phase spiritual enrichment pipeline.
+    Returns (verse, verse_text, verse_niv, insight, jw_link) — all empty strings on failure/ineligible.
+
+    Phase 2A: AI triage — is spiritual context appropriate? → theme + JW search terms
+    Phase 2B: HTTP fetch JW.org/WOL with those search terms → real article snippets
+    Phase 2C: AI synthesis using article + JW.org content → final verse + insight
+    """
+    try:
+        # ── Phase 2A: AI Triage ──────────────────────────────────────────────
+        triage_prompt = build_spiritual_triage_prompt(title, full_context, category, summary)
+        triage = call_ai(triage_prompt)
+        if not triage or not triage.get("eligible"):
+            reason = (triage or {}).get("reason", "no result")
+            log.info("Spiritual triage: NOT eligible for '%s' — %s", title[:50], reason)
+            return ("", "", "", "", "")
+
+        human_theme = triage.get("human_theme", "")
+        tone        = triage.get("tone", "hope")
+        search_terms = triage.get("jw_search_terms", "")
+        log.info("Spiritual triage: ELIGIBLE — theme='%s' search='%s'", human_theme[:60], search_terms[:60])
+
+        if not search_terms:
+            return ("", "", "", "", "")
+
+        # ── Phase 2B: JW.org / WOL Fetch ────────────────────────────────────
+        jw_results = _fetch_jw_snippets(search_terms)
+        if jw_results:
+            log.info("JW.org fetch: got %d chars of content", len(jw_results))
+        else:
+            log.info("JW.org fetch: empty — synthesis will use AI knowledge only")
+
+        # ── Phase 2C: Spiritual Synthesis ────────────────────────────────────
+        synth_prompt = build_spiritual_synthesis_prompt(
+            title, full_context, human_theme, tone, jw_results
+        )
+        synthesis = call_ai(synth_prompt)
+        if not synthesis:
+            log.warning("Spiritual synthesis returned nothing for '%s'", title[:50])
+            return ("", "", "", "", "")
+
+        verse      = synthesis.get("verse", "")
+        verse_text = synthesis.get("verse_text", "")
+        verse_niv  = synthesis.get("verse_niv", "")
+        insight    = synthesis.get("insight", "")
+        raw_link   = synthesis.get("jw_link", "")
+
+        # Validate jw_link — must actually point to jw.org or wol.jw.org
+        jw_link = raw_link if (raw_link and "jw.org" in raw_link) else _jw_link_for(category, search_terms)
+
+        log.info("Spiritual synthesis complete: verse='%s'", verse)
+        return (verse, verse_text, verse_niv, insight, jw_link)
+
+    except Exception as exc:
+        log.warning("Spiritual pipeline error for '%s': %s", title[:50], exc)
+        return ("", "", "", "", "")
 
 # ─── Deduplication check ──────────────────────────────────────────────────────
 
@@ -1269,30 +1440,45 @@ def archive_old_posts() -> None:
         log.error("archive_old_posts failed: %s", exc)
 
 def _enrich_single(art: dict) -> tuple[str, bool]:
-    """Process one article with AI and PATCH the result back to the API."""
+    """
+    Process one article through the full AI enrichment pipeline and PATCH results to API.
+
+    Phase 1  — AI: category, summary, comprehensive_summary, impact, actions (fast, facts-only prompt)
+    Phase 2A — AI: spiritual triage (is it eligible? theme? JW search terms?)
+    Phase 2B — HTTP: fetch real content from wol.jw.org using those search terms
+    Phase 2C — AI: spiritual synthesis using article + JW.org snippets → verse, insight, jw_link
+    """
+    # ── Phase 1: Facts enrichment ────────────────────────────────────────────
     prompt = build_prompt(art["title"], art.get("full_context", ""), art["source"], art["category"])
     ai = call_ai(prompt)
     if not ai:
         return (art["id"], False)
-    
+
     # Allow AI to recategorize — but NEVER pull story-category articles into hard-news categories
     STORY_CATS = {'Entertainment', 'Exciting', 'Funny', 'Wonderful', 'Rare'}
     new_cat = ai.get("category", art["category"])
     if art.get("category") in STORY_CATS and new_cat not in STORY_CATS:
         new_cat = art["category"]   # preserve original story category
-    jw_link = _jw_link_for(new_cat, ai.get("jw_topic", ""))
-    
+
+    summary      = ai.get("summary", "")
+    full_context = ai.get("comprehensive_summary", "")
+
+    # ── Phase 2: Spiritual pipeline (3-step: triage → JW.org fetch → synthesis) ──
+    verse, verse_text, verse_niv, insight, jw_link = _run_spiritual_pipeline(
+        art["title"], full_context or art.get("full_context", ""), new_cat, summary
+    )
+
     payload = json.dumps({
         "category":         new_cat,
-        "summary":          ai.get("summary", ""),
-        "full_context":     ai.get("comprehensive_summary", ""),
+        "summary":          summary,
+        "full_context":     full_context,
         "impact":           ai.get("impact", ""),
         "actions_now":      ai.get("actions_now", ""),
         "actions_later":    ai.get("actions_later", ""),
-        "prophecy_verse":   ai.get("verse", ""),
-        "prophecy_text":    ai.get("verse_text", ""),
-        "prophecy_verse2":  ai.get("verse_niv", ""),
-        "prophecy_insight": ai.get("insight", ""),
+        "prophecy_verse":   verse,
+        "prophecy_text":    verse_text,
+        "prophecy_verse2":  verse_niv,
+        "prophecy_insight": insight,
         "jw_link":          jw_link,
     }).encode()
     try:
