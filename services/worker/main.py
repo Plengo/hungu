@@ -361,9 +361,19 @@ Respond ONLY with valid JSON (no markdown).
   "jw_search_terms": "If eligible: 6-10 keywords for a JW.org/WOL search that will find comforting Bible study articles (e.g. 'God promises end suffering resurrection hope Kingdom justice'). Otherwise empty string."
 }}
 
-ELIGIBILITY RULES — read strictly:
-ELIGIBLE (set eligible=true): murder, violent crime, rape, abuse, human trafficking, terrorism, war, armed conflict, genocide, mass casualties, natural disasters, disease outbreaks, civilian deaths, widespread suffering, corruption with clear victims, environmental harm hurting people, moral failure causing harm to others.
-NOT ELIGIBLE (set eligible=false): elections, party politics, politicians gaining/losing power, sports scores, job listings, property/auction listings, economic statistics and indices, routine government policy, product launches, entertainment celebrity gossip.
+ELIGIBILITY RULES — read carefully:
+ELIGIBLE (set eligible=true):
+- Murder, violent crime, rape, abuse, human trafficking, terrorism, war, armed conflict, genocide, mass casualties
+- Natural disasters, disease outbreaks, civilian deaths, widespread suffering
+- Corruption / fraud / dishonesty involving leaders or public figures (contrast with godly integrity, honest governance)
+- ANY political or government news (leaders, elections, policy, law): Jehovah places leaders — Romans 13:1; Daniel 2:21 — and Christians respect secular authority. Corruption/lies are a reminder of what godly rule looks like when honest.
+- Sports, athletics, recreation, competitions: recreation is a gift; the reflection gently notes the importance of balance so sports never crowd out worship or cause conflict with others.
+- Environmental harm hurting people; moral failure causing harm to others
+NOT ELIGIBLE (set eligible=false):
+- Pure job listings / vacancy adverts
+- Property / auction listings with no crime angle
+- Dry economic statistics with no human story (e.g. interest rate change alone)
+- Product launches / tech specs with no moral/human dimension
 
 Category: {category}
 Title: {title}
@@ -396,11 +406,22 @@ Respond ONLY with valid JSON (no markdown).
 }}
 
 CRITICAL ACCURACY RULES:
-- The verse MUST be real and accurately quoted. Prefer Revelation 21:1-4, Psalm 34:18, Isaiah 41:10, John 5:28-29, Acts 24:15, Matthew 5:4, Romans 8:38-39 for suffering/hope.
-- verse_text MUST be the genuine NWT translation.
-- verse_niv MUST be the genuine NIV translation of the SAME verse.
-- The insight MUST reference THIS specific event and human theme — not be a generic reflection.
-- Do NOT mention the Watchtower Society or "Jehovah's Witnesses" by name in the insight — keep it pastoral.
+- The verse MUST be real and accurately quoted.
+  • Suffering / hope: Revelation 21:1-4, Psalm 34:18, Isaiah 41:10, John 5:28-29, Acts 24:15, Matthew 5:4, Romans 8:38-39
+  • Government / leaders: Romans 13:1, Daniel 2:21, Proverbs 29:2, Psalm 37:10-11
+  • Corruption / dishonesty: Proverbs 11:3, Micah 7:3, Proverbs 14:34
+  • Law of the land / limits of obedience: Acts 5:29, Romans 13:1-7
+  • Sports / recreation / balance: Ecclesiastes 3:4, 1 Corinthians 9:24-27, 1 Timothy 4:8
+- verse_text MUST be the genuine NWT (New World Translation) wording.
+- verse_niv MUST be the genuine NIV wording of the SAME verse.
+- The insight MUST reference THIS specific event — not be a generic reflection.
+- Do NOT mention the Watchtower Society or "Jehovah's Witnesses" by name — keep it pastoral.
+
+TONE GUIDANCE BY TOPIC:
+- Politics / government: acknowledge Jehovah allows human governments temporarily (Dan 2:21); encourage respect for authority "as far as conscience allows" (Rom 13); where there is corruption highlight that honest, just governance is God's standard; never partisan.
+- Sports / recreation: start positively — celebrate the achievement or joy of the event; gently note the balance principle so recreation stays a blessing and not an obsession that crowds out worship; never preachy.
+- Crime / war / disaster: compassion first, then hope — God's Kingdom will end all suffering (Rev 21:4).
+- Science / technology: wonder at God-given human ingenuity; caution where relevant.
 
 Human theme: {human_theme}
 Tone needed: {tone}

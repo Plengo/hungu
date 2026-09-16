@@ -373,11 +373,13 @@ async def needs_enrichment(
     """Return articles missing AI-generated fields so the worker can enrich them."""
     require_worker_key(request)
     from sqlalchemy import or_
+    week_ago = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=7)
     articles = (
         db.query(ArticleModel)
           .filter(
               ArticleModel.status == "active",
               ArticleModel.category != "Auctions",
+              ArticleModel.created_at >= week_ago,
               or_(
                   ArticleModel.actions_now == None,
                   ArticleModel.actions_now == "",
@@ -386,6 +388,8 @@ async def needs_enrichment(
                   ArticleModel.impact == "Impact analysis pending.",
                   ArticleModel.summary == None,
                   ArticleModel.summary == "",
+                  ArticleModel.prophecy_verse == None,
+                  ArticleModel.prophecy_verse == "",
               )
           )
           .order_by(ArticleModel.created_at.desc())
