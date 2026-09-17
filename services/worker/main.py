@@ -202,19 +202,19 @@ def call_ai(prompt: str) -> Optional[dict]:
     # Gemini (separate group — uses different API format)
     gemini_providers = []
     if GEMINI_API_KEY:
-        gemini_providers.append(("Gemini-2.0-Flash", lambda p: _call_gemini_model(p, "gemini-2.0-flash", GEMINI_API_KEY)))
-        gemini_providers.append(("Gemini-2.0-Flash-Lite", lambda p: _call_gemini_model(p, "gemini-2.0-flash-lite", GEMINI_API_KEY)))
+        gemini_providers.append(("Gemini-Flash", lambda p: _call_gemini_model(p, "gemini-flash-latest", GEMINI_API_KEY)))
+        gemini_providers.append(("Gemini-Flash-Lite", lambda p: _call_gemini_model(p, "gemini-flash-lite-latest", GEMINI_API_KEY)))
 
     # OpenAI-compatible providers
     oai_providers = []
     if GROQ_API_KEY:
-        oai_providers.append(("Groq-Llama3.3", lambda p: _call_openai_compatible(p, GROQ_API_KEY, "https://api.groq.com/openai/v1", "llama-3.3-70b-versatile")))
+        oai_providers.append(("Groq-GPT-OSS-120B", lambda p: _call_openai_compatible(p, GROQ_API_KEY, "https://api.groq.com/openai/v1", "openai/gpt-oss-120b")))
     if MISTRAL_API_KEY:
         oai_providers.append(("Mistral", lambda p: _call_openai_compatible(p, MISTRAL_API_KEY, "https://api.mistral.ai/v1", "mistral-small-latest")))
     if OPENROUTER_API_KEY:
-        oai_providers.append(("OpenRouter-Llama3.3", lambda p: _call_openai_compatible(p, OPENROUTER_API_KEY, "https://openrouter.ai/api/v1", "meta-llama/llama-3.3-70b-instruct:free")))
+        oai_providers.append(("OpenRouter-Llama3.3", lambda p: _call_openai_compatible(p, OPENROUTER_API_KEY, "https://openrouter.ai/api/v1", "meta-llama/llama-3.3-70b-instruct")))
     if CEREBRAS_API_KEY:
-        oai_providers.append(("Cerebras-Qwen3", lambda p: _call_openai_compatible(p, CEREBRAS_API_KEY, "https://api.cerebras.ai/v1", "qwen-3-235b-a22b-instruct-2507")))
+        oai_providers.append(("Cerebras-GPT-OSS-120B", lambda p: _call_openai_compatible(p, CEREBRAS_API_KEY, "https://api.cerebras.ai/v1", "gpt-oss-120b")))
     if SAMBANOVA_API_KEY:
         oai_providers.append(("SambaNova-Llama3.3", lambda p: _call_openai_compatible(p, SAMBANOVA_API_KEY, "https://api.sambanova.ai/v1", "Meta-Llama-3.3-70B-Instruct")))
     # DeepSeek: 402 Payment Required (free credits exhausted) — disabled
